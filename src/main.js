@@ -9,7 +9,7 @@ import '@fontsource/ibm-plex-mono/600.css';
 import '@fontsource/noto-sans-tamil/700.css';
 import './styles.css';
 import { ICONS } from './icons.js';
-import { APP_VERSION, UPDATE_URL } from './config.js';
+import { APP_VERSION, UPDATE_URL, RELEASES_URL } from './config.js';
 import * as cloud from './cloud.js';
 import * as SYNC from './sync.js';
 import * as native from './native.js';
@@ -336,9 +336,12 @@ function shiftTicket(label, icon, x) {
   if (!x.no && !placeName(x)) return `<div class="ticket"><span class="k">${ic(icon, 16)}${label}</span><span class="no muted">—</span><span class="pl">No duty</span></div>`;
   return `<div class="ticket"><span class="k">${ic(icon, 16)}${label}${x.half ? ' · Half' : ''}</span><span class="no">${esc(x.no || '—')}</span><span class="pl">${esc(placeName(x) || 'No place')}</span></div>`;
 }
+const H = { scope: 'month' }; // home summary: 'month' (default) or 'life'
 function renderHome() {
   const t = todayIso(), e = S.entries[t], mk = monthKey(t);
-  const tot = totalsFor(monthDates(mk)); const flds = enabledFields();
+  const life = H.scope === 'life', allDates = Object.keys(S.entries).sort();
+  const tot = totalsFor(life ? allDates : monthDates(mk)); const flds = enabledFields();
+  const period = life ? 'lifetime' : MONL[+mk.slice(5) - 1];
   let today = `<div class="today"><div class="d1">Today</div><div class="d2">${esc(fmtDW(t))}</div>`;
   if (!e) {
     const off = isOff(t); const ld = lastDuty();
@@ -357,14 +360,15 @@ function renderHome() {
   const miss = missingDays();
   const missHtml = miss.length ? `<div class="alert"><div class="ah">${ic('warning', 34)}<div class="grow"><b>${plural(miss.length, 'day')} without an entry</b><span class="muted small">Past duty days in the last 31 days</span></div></div><div class="chips">${miss.slice(0, 6).map(d => `<button class="chip" data-act="addFor" data-date="${d}">${esc(fmtDW(d).slice(0, 6))} ${WD[parse(d).getDay()]}</button>`).join('')}${miss.length > 6 ? `<button class="chip" data-act="openMissing">+${miss.length - 6} more</button>` : ''}</div></div>` : '';
 
-  const amtTiles = flds.map(f => `<div class="stat wide">${ic('money', 36)}<div class="grow"><div class="v num">${inr(tot.amt[f.id])}</div><div class="l">Total ${esc(f.name)} · ${MONL[+mk.slice(5) - 1]}</div></div><button class="btn soft sm" data-act="tab" data-tab="records">View</button></div>`).join('');
+  const amtTiles = flds.map(f => `<div class="stat wide">${ic('money', 36)}<div class="grow"><div class="v num">${inr(tot.amt[f.id])}</div><div class="l">Total ${esc(f.name)} · ${period}</div></div><button class="btn soft sm" data-act="tab" data-tab="records">View</button></div>`).join('');
 
   const recent = Object.values(S.entries).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   const recentHtml = recent.length ? `<div class="list">${recent.map(r => `<button class="li" data-act="editEntry" data-date="${r.date}">${ic(STATUS[r.status].icon, 30)}<div class="grow"><div class="t">${esc(fmtDW(r.date))}</div><div class="s">${r.status === 'duty' ? esc([r.m.no && `M ${r.m.no}`, r.e.no && `E ${r.e.no}`].filter(Boolean).join(' · ') || 'Amount only') : STATUS[r.status].label}</div></div><span class="num" style="font-weight:800">${r.status === 'duty' && entryTotal(r) ? inr(entryTotal(r)) : ''}</span><span class="chev">›</span></button>`).join('')}</div>`
     : `<div class="card empty-state">${ic('inbox', 56)}<p>No entries yet. Add your first duty to see it here.</p><button class="btn primary" data-act="fab">Add entry</button></div>`;
 
   $('#v-home').innerHTML = `${updateBanner()}${today}${missHtml}
-    <div class="h-sec"><h3>${MONL[+mk.slice(5) - 1]} ${mk.slice(0, 4)} so far</h3><button class="info" data-act="info" data-info="Same totals as the bottom row of your Excel sheet: on-duty days, morning and evening duty counts, and the amount total for this month.">i</button></div>
+    <div class="h-sec"><h3>${life ? (allDates.length ? `Lifetime · since ${fmtD(allDates[0])}` : 'Lifetime') : `${MONL[+mk.slice(5) - 1]} ${mk.slice(0, 4)} so far`}</h3><button class="info" data-act="info" data-info="${life ? 'Totals for every entry you have saved: on-duty days, morning and evening duty counts, and the amount total.' : 'Same totals as the bottom row of your Excel sheet: on-duty days, morning and evening duty counts, and the amount total for this month.'}">i</button></div>
+    <div class="seg" role="tablist" aria-label="Summary period"><button class="${life ? '' : 'on'}" data-act="homeScope" data-v="month" role="tab" aria-selected="${!life}">This month</button><button class="${life ? 'on' : ''}" data-act="homeScope" data-v="life" role="tab" aria-selected="${life}">Lifetime</button></div>
     <div class="stats">
       <div class="stat">${ic('bus', 34)}<div><div class="v num">${tot.duty}</div><div class="l">On-duty days</div></div></div>
       <div class="stat">${ic('beach', 34)}<div><div class="v num">${tot.holiday + tot.leave}</div><div class="l">Holiday / leave</div></div></div>
@@ -447,7 +451,10 @@ function openEntry(date, prefill) {
 }
 function moneyStr(v) { if (v === '' || v == null) return ''; const [i, d] = String(v).split('.'); return groupIN(i || '0') + (d !== undefined ? '.' + d : ''); }
 function shiftHtml(s, label, icon) {
-  const x = F[s]; const err = F.errs;
+  const x = F[s]; const err = F.errs; const o = s === 'm' ? 'e' : 'm';
+  if (F[o].half && F[o].no) {
+    return `<div class="shift off" id="shift-${s}"><div class="shift-h">${ic(icon, 24)}<span class="grow">${label}</span><span class="tag off">Not used</span></div><div class="muted small">A half day has only one duty. Untick “Half day” on the ${o === 'm' ? 'morning' : 'evening'} duty to add this one.</div></div>`;
+  }
   const plVal = x.other ? 'Other' : (x.place ? placeById(x.place)?.name : '');
   const rec = recentDuty(s);
   return `<div class="shift" id="shift-${s}"><div class="shift-h">${ic(icon, 24)}<span class="grow">${label}</span>${(x.no || x.place || x.other) ? `<button class="linkbtn small" data-act="clearShift" data-s="${s}">Clear</button>` : ''}</div>
@@ -457,7 +464,7 @@ function shiftHtml(s, label, icon) {
     </div>
     ${x.other ? `<div class="field ${err[s + '.text'] ? 'err' : ''}" data-k="${s}.text"><label for="tx-${s}">Place name <span class="req">*</span></label><div class="input"><input id="tx-${s}" data-bind="${s}.text" maxlength="40" placeholder="Type the place name" value="${esc(x.text)}" autocomplete="off"></div><div class="msg">${esc(err[s + '.text'] || '')}</div>
       <button class="checkrow" data-act="toggleSave" data-s="${s}"><span class="checkbox ${x.save ? 'on' : ''}">✓</span>Save to my places for next time</button></div>` : ''}
-    ${x.no ? `<button class="checkrow" data-act="toggleHalf" data-s="${s}" aria-pressed="${!!x.half}"><span class="checkbox ${x.half ? 'on' : ''}">✓</span>Half duty</button>` : ''}
+    ${x.no ? `<button class="checkrow" data-act="toggleHalf" data-s="${s}" aria-pressed="${!!x.half}"><span class="checkbox ${x.half ? 'on' : ''}">✓</span>Half day (only this duty)</button>` : ''}
     ${rec.length ? `<div class="mini-chips"><span class="muted small" style="align-self:center">Recent:</span>${rec.map(n => `<button data-act="pickNo" data-s="${s}" data-no="${n}">${n}</button>`).join('')}</div>` : ''}
   </div>`;
 }
@@ -485,8 +492,8 @@ document.addEventListener('input', e => {
     if (t.dataset.bind.endsWith('.no')) {
       const c = v.replace(/[^A-Za-z0-9 [\]()/.-]/g, '').slice(0, 12); if (c !== v) { t.value = c; } v = c;
       const had = !!F[t.dataset.bind[0]].no;
-      if (had !== !!v) { // the "Half duty" option appears/disappears with the duty number
-        setPath(t.dataset.bind, v); clearErr(t); drawEntry();
+      if (had !== !!v) { // the "Half day" option appears/disappears with the duty number
+        setPath(t.dataset.bind, v); if (!v) F[t.dataset.bind[0]].half = false; clearErr(t); drawEntry();
         const n = $('#' + t.id); if (n) { n.focus(); n.setSelectionRange(v.length, v.length); }
         return;
       }
@@ -535,6 +542,8 @@ function validateEntry() {
       else if (n > 100000) err['amt.' + f.id] = 'Maximum is ₹1,00,000';
       else any = true;
     });
+    const used = x => x.no || x.place || (x.other && x.text.trim());
+    if ((F.m.half && F.m.no && used(F.e)) || (F.e.half && F.e.no && used(F.m)) || (F.m.half && F.e.half)) err.block = 'A half day has only one duty. Remove the other duty or untick “Half day”.';
     if (!any && !Object.keys(err).some(k => k !== 'date')) err.block = 'Add a morning or evening duty number, or an amount.';
   }
   if (F.note.length > 200) err.note = 'Keep the note under 200 characters';
@@ -555,6 +564,8 @@ function saveEntry() {
   const shift = s => {
     const x = F[s]; let place = x.place, text = '';
     if (F.status !== 'duty') return { no: '', place: null, text: '', half: false };
+    const o = F[s === 'm' ? 'e' : 'm'];
+    if (o.half && o.no) return { no: '', place: null, text: '', half: false }; // half day: only the other duty counts
     if (x.other) {
       const tx = x.text.trim().replace(/\s+/g, ' ');
       if (x.save) { let p = S.places.find(p => p.name.toLowerCase() === tx.toLowerCase()); if (!p) { p = { id: uid('p'), name: tx, catId: null, icon: null, hidden: false }; S.places.push(p); created.push(p.id); } place = p.id; }
@@ -666,9 +677,9 @@ function exportName(ext) { const r = exportRange(); const base = X.period === 'm
 const csvCell = v => { let s = String(v ?? ''); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 function buildCSV() {
   const { rows } = exportRows(); const flds = enabledFields();
-  const head = ['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Morning Place', 'Evening Duty', 'Evening Place', ...flds.map(f => `${f.name} (₹)`), 'Note'];
+  const head = ['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Morning Place', 'Evening Duty', 'Evening Place', ...flds.map(f => `${f.name} (₹)`), 'Half day', 'Note'];
   const lines = [head.map(csvCell).join(',')];
-  rows.forEach(({ d, e }, i) => lines.push([i + 1, fmtD(d), WDL[parse(d).getDay()], e ? STATUS[e.status].label : '', e?.m.no || '', e ? placeName(e.m) : '', e?.e.no || '', e ? placeName(e.e) : '', ...flds.map(f => e?.amt[f.id] ?? ''), e?.note || ''].map(csvCell).join(',')));
+  rows.forEach(({ d, e }, i) => lines.push([i + 1, fmtD(d), WDL[parse(d).getDay()], e ? STATUS[e.status].label : '', e?.m.no || '', e ? placeName(e.m) : '', e?.e.no || '', e ? placeName(e.e) : '', ...flds.map(f => e?.amt[f.id] ?? ''), halfLabel(e), e?.note || ''].map(csvCell).join(',')));
   return '﻿' + lines.join('\r\n');
 }
 /* Shared export model: one row per day, used by the on-screen preview, PDF, Excel and CSV.
@@ -681,12 +692,13 @@ function exportData() {
     status: e ? STATUS[e.status].label : (isOff(d) ? 'Holiday' : ''),
     kind: e?.status === 'holiday' || (!e && isOff(d)) ? 'h' : e?.status === 'leave' ? 'lv' : '',
     mNo: e?.m.no || '', mPl: e ? placeName(e.m) : '', eNo: e?.e.no || '', ePl: e ? placeName(e.e) : '',
-    amt: flds.map(f => e?.amt[f.id] ?? ''), note: e?.note || ''
+    amt: flds.map(f => e?.amt[f.id] ?? ''), half: halfLabel(e), note: e?.note || ''
   }));
   const info = [['Name', p.name || '—'], ['Staff ID', p.staffId], ['Depot', p.depot], ['Period', `${fmtD(r.from)} to ${fmtD(r.to)}`]].filter(x => x[1]);
   return { r, flds, list, info, tot: totalsFor(rows.map(x => x.d)), title: `Daily Duty Tracker — ${r.title}` };
 }
 const money0 = v => v === '' ? '' : inr(v).replace('₹', '');
+const halfLabel = e => !e || e.status !== 'duty' ? '' : e.m.half && e.m.no ? 'Morning' : e.e.half && e.e.no ? 'Evening' : '';
 const dutyCell = (no, pl) => [no, pl].filter(Boolean).join(' · ');
 const totalLabels = D => ['On Duty Days:', 'Morning Count:', 'Evening Count:', ...D.flds.map(f => `Total ${f.name}:`)];
 const totalValues = D => [D.tot.duty, D.tot.m, D.tot.e, ...D.flds.map(f => money0(D.tot.amt[f.id]) || '0')];
@@ -720,44 +732,54 @@ async function loadLibs(kind) {
 const rgb = hex => [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
 /* ---- Printed sheet (PDF) ----
    Same structure as the paper "spare" sheet: month · name · duty type, then
-   Date | Route.no | Half | place | Amount for each worked duty, blank rows, and a
-   Signature / TOTAL footer. Drawn on a canvas so Tamil place names are shaped
-   correctly, then placed as a 300-dpi image in the top-left 60% × 60% of an A4 page. */
+   Date | Route.no | Half | place | Amount for each worked day, blank rows, and a
+   Signature / TOTAL footer. A day with a morning and an evening duty gets two rows
+   with the Date and Amount cells merged and a border between the two duties.
+   Drawn on a canvas so Tamil place names are shaped correctly, then placed as a
+   300-dpi image in the top-left 60% × 60% of an A4 landscape page. */
+const A4L = { w: 841.89, h: 595.28, m: 14, frac: 0.6 };
 const SHEET = { purple: '#7030A0', red: '#FF0000', green: '#00B050', ink: '#000000', line: '#3A3A3A', thin: '#8A8A8A' };
 const SHEET_FONT = 'Arial, Roboto, Figtree, "Noto Sans Tamil", sans-serif';
 const SHEET_COLS = [0.12, 0.126, 0.16, 0.43, 0.164]; // Date, Route.no, Half, place, Amount (share of width)
-const SHEET_MIN_ROWS = 20, SHEET_MAX_ROWS = 48; // more than 48 duty rows continue on a second page
+const SHEET_MIN_ROWS = 20, SHEET_MAX_ROWS = 34; // more duty rows than this continue on another page
+const SHEET_W = A4L.w * A4L.frac - A4L.m, SHEET_MAX_H = A4L.h * A4L.frac - A4L.m;
 function sheetData() {
   const { r, rows } = exportRows(); const flds = enabledFields(); const p = S.profile;
-  const list = []; let total = 0;
+  const days = []; let total = 0;
   rows.forEach(({ d, e }) => {
     if (!e || e.status !== 'duty') return;
-    const dt = parse(d); const date = `${dt.getDate()}-${MON[dt.getMonth()]}`;
+    const dt = parse(d);
     const amount = flds.reduce((s, f) => s + (+e.amt[f.id] || 0), 0); total += amount;
-    const shifts = ['m', 'e'].map(k => e[k]).filter(x => x.no || placeName(x));
-    if (!shifts.length) shifts.push({ no: '', place: null, text: '' });
-    shifts.forEach((x, i) => list.push({ date: i ? '' : date, no: x.no || '', half: !!x.half, place: placeName(x), amount: i || !amount ? '' : money0(amount) }));
+    const duties = ['m', 'e'].map(k => e[k]).filter(x => x.no || placeName(x)).map(x => ({ no: x.no || '', half: !!(x.half && x.no), place: placeName(x) }));
+    if (!duties.length) duties.push({ no: '', half: false, place: '' });
+    days.push({ date: `${dt.getDate()}-${MON[dt.getMonth()]}`, amount: amount ? money0(amount) : '', duties });
   });
+  const pages = []; let page = [], count = 0;
+  days.forEach(day => { // keep a day's two rows on the same page
+    if (count + day.duties.length > SHEET_MAX_ROWS && page.length) { pages.push(page); page = []; count = 0; }
+    page.push(day); count += day.duties.length;
+  });
+  pages.push(page);
+  const list = days.flatMap(day => day.duties.map((x, i) => ({ date: i ? '' : day.date, no: x.no, half: x.half, place: x.place, amount: i ? '' : day.amount })));
   const sameMonth = r.from.slice(0, 7) === r.to.slice(0, 7);
   const head = sameMonth ? `${r.from.slice(0, 4)} ${MONL[+r.from.slice(5, 7) - 1]}` : `${fmtD(r.from)} – ${fmtD(r.to)}`;
-  const pages = []; for (let i = 0; i < Math.max(list.length, 1); i += SHEET_MAX_ROWS) pages.push(list.slice(i, i + SHEET_MAX_ROWS));
-  return { head, name: p.name || '', role: (p.designation || 'spare').trim(), list, pages, total: money0(total) || '0' };
+  return { head, name: p.name || '', role: (p.designation || 'spare').trim(), days, pages, list, total: money0(total) || '0' };
 }
-function sheetLayout(rowCount, W) {
+const pageRows = days => days.reduce((n, d) => n + d.duties.length, 0);
+function sheetLayout(rowCount) {
   const R = Math.max(SHEET_MIN_ROWS, rowCount);
-  const maxH = A4.h * A4.frac - A4.m;
-  const u = Math.min(W * 0.034, maxH / (R + 9.4)); // row height; header/footer sized in rows
+  const u = Math.min(SHEET_W * 0.0306, SHEET_MAX_H / (R + 9.4)); // row height; header and footer are sized in rows
   return { R, u, H: u * (R + 9.4) };
 }
-/* Draws one page of the sheet. W = width in points, s = pixels per point. */
-function drawSheet(ctx, D, rows, last, W, s) {
-  const { R, u, H } = sheetLayout(rows.length, W);
+/* Draws one page of the sheet at s pixels per point. */
+function drawSheet(ctx, D, days, last, s) {
+  const W = SHEET_W; const { R, u, H } = sheetLayout(pageRows(days));
   const xs = [0]; SHEET_COLS.forEach(f => xs.push(xs[xs.length - 1] + f * W));
   ctx.save(); ctx.scale(s, s);
   ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
   const line = (x1, y1, x2, y2, w, c) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineWidth = w; ctx.strokeStyle = c; ctx.stroke(); };
   const thick = (x1, y1, x2, y2) => line(x1, y1, x2, y2, 0.9, SHEET.line);
-  const thin = (x1, y1, x2, y2) => line(x1, y1, x2, y2, 0.4, SHEET.thin);
+  const thin = (x1, y1, x2, y2) => line(x1, y1, x2, y2, 0.45, SHEET.thin);
   const text = (str, x0, x1, y, h, size, color = SHEET.ink) => {
     str = String(str ?? ''); if (!str) return;
     let fs = size; const room = x1 - x0 - u * 0.3;
@@ -780,18 +802,23 @@ function drawSheet(ctx, D, rows, last, W, s) {
   text('place', xs[3], xs[4], y, h2, 0.56 * u); text('Amount', xs[4], xs[5], y, h2, 0.56 * u);
   [1, 3, 4].forEach(i => thick(xs[i], y, xs[i], y + h2)); thick(0, y + h2, W, y + h2);
   y += h2;
-  // Duty rows, then blank rows
-  for (let i = 0; i < R; i++) {
-    const row = rows[i];
-    if (row) {
-      text(row.date, xs[0], xs[1], y, u, 0.66 * u); text(row.no, xs[1], xs[2], y, u, 0.66 * u);
-      text(row.half ? 'Half' : '', xs[2], xs[3], y, u, 0.66 * u); text(row.place, xs[3], xs[4], y, u, 0.66 * u);
-      text(row.amount, xs[4], xs[5], y, u, 0.66 * u);
-    }
-    if (i < R - 1) thin(0, y + u, W, y + u);
-    y += u;
-  }
-  [1, 3, 4].forEach(i => thick(xs[i], y - R * u, xs[i], y)); thin(xs[2], y - R * u, xs[2], y);
+  // Worked days (Date and Amount merged across a day's duties), then blank rows
+  const top = y; let used = 0;
+  days.forEach(day => {
+    const k = day.duties.length;
+    text(day.date, xs[0], xs[1], y, k * u, 0.66 * u);
+    text(day.amount, xs[4], xs[5], y, k * u, 0.66 * u);
+    day.duties.forEach((x, j) => {
+      const yy = y + j * u;
+      if (j) line(xs[1], yy, xs[4], yy, 0.6, SHEET.line); // border between morning and evening duty
+      text(x.no, xs[1], xs[2], yy, u, 0.66 * u); text(x.half ? 'Half' : '', xs[2], xs[3], yy, u, 0.66 * u);
+      text(x.place, xs[3], xs[4], yy, u, 0.66 * u);
+    });
+    y += k * u; used += k;
+    if (used < R) thin(0, y, W, y);
+  });
+  for (let i = used; i < R; i++) { y += u; if (i < R - 1) thin(0, y, W, y); }
+  [1, 3, 4].forEach(i => thick(xs[i], top, xs[i], y)); thin(xs[2], top, xs[2], y);
   thick(0, y, W, y);
   // Footer: Signature | TOTAL | amount
   const hl = 0.9 * u, hb = 5 * u;
@@ -808,37 +835,36 @@ function drawSheet(ctx, D, rows, last, W, s) {
 async function sheetFonts() {
   try { await Promise.all([document.fonts.load(`bold 16px "Noto Sans Tamil"`, 'அ'), document.fonts.load('bold 16px Figtree')]); } catch (e) { /* system fonts still work */ }
 }
-const SHEET_W = A4.w * A4.frac - A4.m;
 async function buildPDF() {
   await Promise.all([loadLibs('pdf'), sheetFonts()]);
   const D = sheetData(); const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
   const s = 300 / 72;
-  D.pages.forEach((rows, i) => {
-    if (i) doc.addPage();
-    const { H } = sheetLayout(rows.length, SHEET_W);
+  D.pages.forEach((days, i) => {
+    if (i) doc.addPage('a4', 'landscape');
+    const { H } = sheetLayout(pageRows(days));
     const c = document.createElement('canvas'); c.width = Math.ceil(SHEET_W * s); c.height = Math.ceil(H * s);
-    drawSheet(c.getContext('2d'), D, rows, i === D.pages.length - 1, SHEET_W, s);
-    doc.addImage(c.toDataURL('image/png'), 'PNG', A4.m, A4.m, SHEET_W, H, undefined, 'FAST');
+    drawSheet(c.getContext('2d'), D, days, i === D.pages.length - 1, s);
+    doc.addImage(c.toDataURL('image/png'), 'PNG', A4L.m, A4L.m, SHEET_W, H, undefined, 'FAST');
   });
   doc.setProperties({ title: `Duty sheet ${D.head}`, author: D.name, creator: 'Daily Duty Tracker' });
   return doc.output('arraybuffer');
 }
-/* Preview inside the export sheet: the first page on an A4 outline (dashed line = cut). */
+/* Preview inside the export sheet: the first page on an A4 landscape outline (dashed line = cut). */
 async function drawSheetPreview(el) {
   const cv = el.querySelector('#sheet-cv'); if (!cv) return;
   await sheetFonts();
-  const D = sheetData(); const rows = D.pages[0]; const { H } = sheetLayout(rows.length, SHEET_W);
+  const D = sheetData(); const days = D.pages[0]; const { H } = sheetLayout(pageRows(days));
   const s = Math.min(3, (window.devicePixelRatio || 1) * 2);
   cv.width = Math.ceil(SHEET_W * s); cv.height = Math.ceil(H * s);
   cv.style.width = SHEET_W + 'px'; cv.style.height = H + 'px';
-  drawSheet(cv.getContext('2d'), D, rows, D.pages.length === 1, SHEET_W, s);
+  drawSheet(cv.getContext('2d'), D, days, D.pages.length === 1, s);
 }
 async function buildXLSX() {
   await loadLibs('xlsx');
   const D = exportData(); const wb = new window.ExcelJS.Workbook(); wb.creator = 'Daily Duty Tracker';
   const ws = wb.addWorksheet(D.r.title.slice(0, 31).replace(/[\\/?*[\]:]/g, '-'), { pageSetup: { paperSize: 9, orientation: 'portrait' } });
-  const head = ['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Morning Place', 'Evening Duty', 'Evening Place', ...D.flds.map(f => `${f.name} (₹)`), 'Note'];
+  const head = ['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Morning Place', 'Evening Duty', 'Evening Place', ...D.flds.map(f => `${f.name} (₹)`), 'Half day', 'Note'];
   const n = head.length;
   const fill = hex => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + hex } });
   const thin = { style: 'thin', color: { argb: 'FF' + XL.grid } }; const border = { top: thin, left: thin, bottom: thin, right: thin };
@@ -860,7 +886,7 @@ async function buildXLSX() {
   const num = v => v === '' ? null : /^\d+$/.test(v) ? +v : v; const txt = v => v === '' ? null : v;
   D.list.forEach((x, i) => {
     const row = ws.getRow(first + i);
-    row.values = [x.n, x.date, x.day, txt(x.status), num(x.mNo), txt(x.mPl), num(x.eNo), txt(x.ePl), ...x.amt.map(a => a === '' ? null : +a), txt(x.note)];
+    row.values = [x.n, x.date, x.day, txt(x.status), num(x.mNo), txt(x.mPl), num(x.eNo), txt(x.ePl), ...x.amt.map(a => a === '' ? null : +a), txt(x.half), txt(x.note)];
     for (let col = 1; col <= n; col++) {
       const c = row.getCell(col); c.border = border; c.font = font(); c.alignment = { horizontal: col === 6 || col === 8 || col === n ? 'left' : 'center', vertical: 'middle' };
       if (x.kind) c.fill = fill(x.kind === 'h' ? XL.holiday : XL.leave);
@@ -879,7 +905,7 @@ async function buildXLSX() {
   spots.forEach((c, i) => { ws.getCell(L, c).value = labels[i]; ws.getCell(V, c).value = { formula: formulas[i], result: results[i] }; });
   ws.getRow(L).height = 22; ws.getRow(V).height = 22;
   D.flds.forEach((f, i) => { ws.getColumn(9 + i).numFmt = '[>=100000]##\\,##\\,##0;##,##0'; });
-  [5, 13, 11, 10, 12, 18, 12, 18, ...D.flds.map(() => 13), 26].forEach((w, i) => ws.getColumn(i + 1).width = w);
+  [5, 13, 11, 10, 12, 18, 12, 18, ...D.flds.map(() => 13), 10, 26].forEach((w, i) => ws.getColumn(i + 1).width = w);
   ws.views = [{ state: 'frozen', ySplit: 4 }];
   return await wb.xlsx.writeBuffer();
 }
@@ -893,7 +919,7 @@ async function saveFile(name, data) {
     setTimeout(() => URL.revokeObjectURL(url), 5000); return 'saved';
   } catch (e) { return 'failed'; }
 }
-const FMT = { pdf: { label: 'PDF', icon: 'page', note: 'Duty sheet: worked days with route, place and amount' }, xlsx: { label: 'Excel', icon: 'chart', note: 'Excel workbook with colours and live totals (SUM / COUNTIF)' }, csv: { label: 'CSV', icon: 'clipboard', note: 'Plain data, one row per day' } };
+const FMT = { pdf: { label: 'PDF', icon: 'page', note: 'Duty sheet, A4 landscape: worked days with route, place and amount' }, xlsx: { label: 'Excel', icon: 'chart', note: 'Excel workbook with colours and live totals (SUM / COUNTIF)' }, csv: { label: 'CSV', icon: 'clipboard', note: 'Plain data, one row per day' } };
 async function doExport(fmt, again) {
   if (X.busy) return;
   const { rows } = exportRows(); if (!rows.length) return toast('Nothing to export for this period', 'warn');
@@ -905,9 +931,9 @@ async function doExport(fmt, again) {
   if (!again) {
     const preview = fmt === 'csv'
       ? `<div class="xl" style="overflow:auto"><pre style="margin:0;padding:10px;font:11px/1.5 var(--f-mono);white-space:pre">${esc(data.replace('﻿', '').split('\r\n').slice(0, 14).join('\n'))}${rows.length > 13 ? '\n…' : ''}</pre></div>`
-      : fmt === 'pdf' ? `<div class="paper-wrap"><div class="a4"><div class="cut" aria-hidden="true"></div><canvas id="sheet-cv" class="sheet-cv" aria-label="Duty sheet preview"></canvas></div></div><div class="cut-note">Dashed line shows where to cut the printed A4 sheet</div>`
+      : fmt === 'pdf' ? `<div class="paper-wrap"><div class="a4 land"><div class="cut" aria-hidden="true"></div><canvas id="sheet-cv" class="sheet-cv" aria-label="Duty sheet preview"></canvas></div></div><div class="cut-note">Dashed line shows where to cut the printed A4 sheet</div>`
       : `<div class="paper-wrap">${paperHtml()}</div>`;
-    openLayer(`<div class="sheet-card" style="height:92%">${sheetHead('Export')}<div class="sheet-body"><div class="filecard">${ic(FMT[fmt].icon, 40)}<div class="grow"><b>${esc(name)}</b><span class="muted small">${fmt === 'pdf' ? plural(sheetData().list.filter(r => r.date).length, 'worked day') : plural(rows.length, 'row')} · ${FMT[fmt].note}</span></div></div>${preview}</div><div class="sheet-foot"><button class="btn green block" data-act="xAgain" data-f="${fmt}" id="x-again">Download again</button></div></div>`,
+    openLayer(`<div class="sheet-card" style="height:92%">${sheetHead('Export')}<div class="sheet-body"><div class="filecard">${ic(FMT[fmt].icon, 40)}<div class="grow"><b>${esc(name)}</b><span class="muted small">${fmt === 'pdf' ? plural(sheetData().days.length, 'worked day') : plural(rows.length, 'row')} · ${FMT[fmt].note}</span></div></div>${preview}</div><div class="sheet-foot"><button class="btn green block" data-act="xAgain" data-f="${fmt}" id="x-again">Download again</button></div></div>`,
       { onMount: el => { fitPaper(el); drawSheetPreview(el); } });
   }
   const res = await saveFile(name, data);
@@ -918,7 +944,11 @@ async function doExport(fmt, again) {
   else toast(`Couldn't save ${name}. Try again.`, 'err');
 }
 function updateAgainBtn() { const b = $('#x-again'); if (b) { b.disabled = !!X.busy; b.textContent = X.busy ? 'Preparing…' : 'Download again'; } }
-function fitPaper(el) { const p = el.querySelector('.a4'); if (!p) return; if (el.querySelector('#blk')) fitBlock(el); const w = el.querySelector('.paper-wrap').clientWidth - 24; const s = Math.min(1, w / 595); p.style.transform = `scale(${s})`; p.style.marginBottom = `${-(1 - s) * 842}px`; p.style.marginRight = `${-(1 - s) * 595}px`; }
+function fitPaper(el) {
+  const p = el.querySelector('.a4'); if (!p) return; if (el.querySelector('#blk')) fitBlock(el);
+  const pw = p.offsetWidth, ph = p.offsetHeight, w = el.querySelector('.paper-wrap').clientWidth - 24, sc = Math.min(1, w / pw);
+  p.style.transform = `scale(${sc})`; p.style.marginBottom = `${-(1 - sc) * ph}px`; p.style.marginRight = `${-(1 - sc) * pw}px`;
+}
 
 /* ---------------- Settings ---------------- */
 function secHtml(id, icon, title, sub, body) {
@@ -953,7 +983,8 @@ function renderSettings() {
     ${secHtml('look', 'palette', 'Appearance', `${({ system: 'System', light: 'Light', dark: 'Dark', darkblue: 'Dark blue' })[st.theme]} theme · ${({ s: 'Small', m: 'Medium', l: 'Large' })[st.text]} text`, lookBody)}
     ${secHtml('remind', 'bell', 'Reminder', rem.on ? `Daily at ${fmtTime(rem.time)}` : 'Off', remBody)}
     ${secHtml('sync', 'cloud', 'Sync & backup', esc(syncState().text), syncBody)}
-    <div class="card" style="padding:4px 14px"><div class="setrow"><div class="lbl"><div>Version ${esc(APP_VERSION)}<small>${UPD.info ? `Version ${esc(UPD.info.version)} is available` : 'Checks for updates when you open the app'}</small></div></div>${UPD.info ? '<button class="btn primary sm" data-act="updateNow">Update</button>' : '<button class="btn ghost sm" data-act="checkUpdate">Check</button>'}</div></div>
+    <div class="card upd-set" id="upd-set"><div class="row">${ic('bell', 32)}<div class="grow"><b>App updates · version ${esc(APP_VERSION)}</b><div class="muted small" id="upd-text">${esc(updText())}</div></div></div>
+      <div class="actions">${UPD.info ? '<button class="btn primary sm" data-act="updateNow">Update now</button>' : '<button class="btn soft sm" data-act="checkUpdate">Check for updates</button>'}<button class="btn ghost sm" data-act="downloadLatest">Download latest</button></div></div>
     ${signedIn ? `<button class="btn block logout" data-act="logout">${ic('lock', 20)}Log out</button>` : ''}
     <div class="ver">Daily Duty Tracker · v${esc(APP_VERSION)}</div>`;
 }
@@ -1191,20 +1222,42 @@ function refreshReminders() {
 }
 
 /* ---------------- App updates ---------------- */
-const UPD = { info: null, checkedAt: 0 };
+const UPD = { info: null, checkedAt: 0, state: 'idle', at: 0 }; // state: idle | latest | available | off | offline | error
 function cmpVer(a, b) { const pa = String(a).split(/[.-]/).map(n => parseInt(n, 10) || 0), pb = String(b).split(/[.-]/).map(n => parseInt(n, 10) || 0); for (let i = 0; i < 3; i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0); } return 0; }
+const UPD_TEXT = {
+  idle: 'Checks for updates when you open the app',
+  latest: () => `Up to date · checked ${ago(UPD.at)}`,
+  available: () => `Version ${UPD.info.version} is available`,
+  off: 'Automatic updates aren’t switched on yet. Use “Download latest” to get the newest version.',
+  offline: 'You are offline. It checks again when you are back online.',
+  error: 'Couldn’t reach the update server. Try again later.'
+};
+const updText = () => { const t = UPD_TEXT[UPD.state]; return typeof t === 'function' ? t() : t; };
 async function checkUpdate(manual) {
-  if (!UPDATE_URL) { if (manual) toast(`You have version ${APP_VERSION}. Update checks aren't set up for this build.`, 'info'); return; }
   if (!manual && Date.now() - UPD.checkedAt < 30 * 60000) return;
   UPD.checkedAt = Date.now();
-  try {
-    const r = await fetch(`${UPDATE_URL}?t=${Date.now()}`, { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const v = await r.json();
-    UPD.info = v && v.version && cmpVer(v.version, APP_VERSION) > 0 ? v : null;
-    if (manual) toast(UPD.info ? `Version ${v.version} is available` : `You have the latest version (${APP_VERSION})`, UPD.info ? 'info' : 'ok');
-  } catch (e) { if (manual) toast(isOnline() ? "Couldn't check for updates right now" : 'You are offline. Connect to check for updates.', 'warn'); }
+  if (!UPDATE_URL) UPD.state = 'off';
+  else if (!isOnline()) UPD.state = 'offline';
+  else {
+    try {
+      const r = await fetch(`${UPDATE_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      if (r.status === 400 || r.status === 404) UPD.state = 'off'; // nothing published to the update channel yet
+      else if (!r.ok) throw new Error('HTTP ' + r.status);
+      else {
+        const v = await r.json();
+        UPD.info = v && v.version && cmpVer(v.version, APP_VERSION) > 0 ? v : null;
+        UPD.state = UPD.info ? 'available' : 'latest'; UPD.at = Date.now();
+      }
+    } catch (e) { UPD.state = isOnline() ? 'error' : 'offline'; }
+  }
+  if (manual) toast(updText(), { latest: 'ok', available: 'info', off: 'info' }[UPD.state] || 'warn');
   renderUpdate();
+}
+function downloadLatest() {
+  const url = (UPD.info && UPD.info.apk) || RELEASES_URL;
+  if (!url) return toast('No download link in this build', 'warn');
+  native.openUrl(url);
+  if (!(UPD.info && UPD.info.apk)) toast('Opening GitHub Releases. Sign in to GitHub if it asks, then download duty-tracker.apk.', 'info');
 }
 const isMajorUpdate = () => UPD.info && cmpVer(String(parseInt(UPD.info.version, 10)), String(parseInt(APP_VERSION, 10))) > 0;
 function renderUpdate() {
@@ -1266,6 +1319,7 @@ const ACT = {
       onPick: v => { S.settings.reminder.time = v; markDirty(); renderSettings(); refreshReminders(); toast(`Reminder set for ${fmtTime(v)}`, 'ok'); } });
   },
   checkUpdate: () => checkUpdate(true),
+  downloadLatest: () => downloadLatest(),
   updateNow: () => updateNow(),
   updateLater: () => { if (UPD.info) LS.set('ddt:updSnooze', { v: UPD.info.version, until: Date.now() + 24 * 3600e3 }); renderHome(); toast('We will remind you about this update tomorrow', 'info'); },
   // Entry form
@@ -1277,7 +1331,17 @@ const ACT = {
   pickPlace: b => { const s = b.dataset.s; const x = F[s]; openPicker({ title: b.closest('.shift').querySelector('.shift-h .grow').textContent + ' · place', value: x.other ? '__other' : x.place, groups: placeGroups(), placeholder: 'Search places', extra: [{ value: '__other', label: 'Other (type manually)', sub: 'For a place not in your list', icon: 'pencil' }, ...(x.place || x.other ? [{ value: '__none', label: 'No place', icon: 'label' }] : [])], onPick: (v, q) => { if (v === '__other') { x.other = true; x.place = null; x.text = x.text || q || ''; } else if (v === '__none') { x.other = false; x.place = null; x.text = ''; } else { x.other = false; x.place = v; x.text = ''; } delete F.errs[s + '.text']; drawEntry(); if (v === '__other') setTimeout(() => $('#tx-' + s)?.focus(), 350); } }); },
   toggleSave: b => { const x = F[b.dataset.s]; x.save = !x.save; b.querySelector('.checkbox').classList.toggle('on', x.save); },
   pickNo: b => { F[b.dataset.s].no = b.dataset.no; delete F.errs[b.dataset.s + '.no']; delete F.errs.block; drawEntry(); },
-  toggleHalf: b => { const x = F[b.dataset.s]; x.half = !x.half; b.querySelector('.checkbox').classList.toggle('on', x.half); b.setAttribute('aria-pressed', x.half); },
+  homeScope: b => { H.scope = b.dataset.v; renderHome(); },
+  toggleHalf: b => {
+    const s = b.dataset.s, o = s === 'm' ? 'e' : 'm', x = F[s];
+    x.half = !x.half;
+    if (x.half) { // a half day has only one duty: clear and disable the other one
+      const y = F[o]; const had = y.no || y.place || (y.other && y.text.trim());
+      F[o] = blankShift(); ['.no', '.text'].forEach(k => delete F.errs[o + k]);
+      if (had) toast(`${o === 'm' ? 'Morning' : 'Evening'} duty removed — a half day has only one duty`, 'info');
+    }
+    delete F.errs.block; drawEntry();
+  },
   clearShift: b => { F[b.dataset.s] = blankShift(); drawEntry(); },
   // Export
   xPeriod: b => { X.period = b.dataset.v; renderExport(); if (X.period === 'pick') ACT.xMonth(); },

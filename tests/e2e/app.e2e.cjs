@@ -50,6 +50,13 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   await page.keyboard.type('123456'); await page.waitForTimeout(1500);
   ok('TC-56 new device: existing account data downloaded before Home (no onboarding)', await page.isVisible('#v-home.active') && (await page.textContent('#top-t2')) === 'Demo Driver' && await page.evaluate(() => Object.keys(S.entries).length > 60));
   await page.waitForTimeout(1500);
+  ok('TC-98 home summary defaults to This month', (await page.textContent('#v-home .seg .on')).includes('This month'));
+  await click('[data-act=homeScope][data-v=life]');
+  { const want = await page.evaluate(() => Object.values(S.entries).filter(e => e.status === 'duty').length);
+    const shown = await page.evaluate(() => +document.querySelector('#v-home .stat .v').textContent);
+    ok('TC-98b Lifetime shows totals for every entry', shown === want && (await page.textContent('#v-home')).includes('Lifetime · since') && (await page.textContent('#v-home')).includes('lifetime'), `${shown} vs ${want}`); }
+  await shot('03c-home-lifetime');
+  await click('[data-act=homeScope][data-v=month]');
   ok('TC-10 sync dot green after sync', (await page.getAttribute('#syncdot', 'class')).includes('ok'));
   await shot('03-home-light'); ok('UI home no overflow', (await overflow()) <= 0);
   await page.evaluate(() => document.querySelector('#v-home').scrollTo(0, 9999)); await page.waitForTimeout(200); await shot('03b-home-light-scrolled');
@@ -67,6 +74,17 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   ok('TC-96 "Half duty" option appears once a route no. is typed', await page.isVisible('#shift-m [data-act=toggleHalf]'));
   await page.fill('#no-m', ''); await page.waitForTimeout(150);
   ok('TC-96b … and hides when it is cleared', !(await page.isVisible('#shift-m [data-act=toggleHalf]')));
+  await page.fill('#no-m', '8752'); await page.waitForTimeout(150);
+  await page.fill('#no-e', '8761'); await page.waitForTimeout(150);
+  await click('#shift-m [data-act=toggleHalf]');
+  ok('TC-97 Half day on morning clears and disables the evening duty', await page.evaluate(() => F.m.half === true && F.e.no === '') && !(await page.isVisible('#no-e')) && (await page.textContent('#shift-e')).includes('Not used'));
+  await shot('06a-half-day');
+  await click('#shift-m [data-act=toggleHalf]');
+  ok('TC-97b untick Half day → evening duty available again', await page.isVisible('#no-e'));
+  await page.fill('#no-e', '8761'); await page.waitForTimeout(150);
+  await click('#shift-e [data-act=toggleHalf]');
+  ok('TC-97c Half day on evening clears and disables the morning duty', await page.evaluate(() => F.e.half === true && F.m.no === '') && !(await page.isVisible('#no-m')));
+  await click('#shift-e [data-act=toggleHalf]'); await page.fill('#no-e', ''); await page.waitForTimeout(150);
   await page.fill('#no-m', '8752'); await page.waitForTimeout(150);
   await click('#shift-m [data-act=pickPlace]');
   await shot('06-place-picker');
@@ -164,10 +182,10 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   ok('TC-72 real PDF downloaded', fs.readFileSync(pdfFile).slice(0, 5).toString() === '%PDF-', path.basename(pdfFile));
   { const pdf = fs.readFileSync(pdfFile).toString('latin1');
     ok('TC-84 PDF has no legend', !/Legend/i.test(pdf));
-    ok('TC-85 month fits on one page', (pdf.match(/\/Type \/Page\b(?!s)/g) || []).length === 1);
+    ok('TC-85 month fits on one page, A4 landscape', (pdf.match(/\/Type \/Page\b(?!s)/g) || []).length === 1 && /\/MediaBox \[0 0 841\.8\d* 595\.2\d*\]/.test(pdf));
     const im = [...pdf.matchAll(/([\d.]+) 0 0 ([\d.]+) ([\d.]+) ([\d.]+) cm/g)].map(m => [+m[1], +m[2], +m[3], +m[4]]);
-    const maxRight = Math.max(...im.map(([w, , x]) => x + w)), maxDown = Math.max(...im.map(([, , , y]) => 841.89 - y));
-    ok('TC-85b sheet drawn inside top-left 60% × 60% of A4', im.length === 1 && maxRight <= 595.28 * 0.6 + 0.5 && maxDown <= 841.89 * 0.6 + 0.5, `right ${maxRight.toFixed(0)}/357, bottom ${maxDown.toFixed(0)}/505`); }
+    const maxRight = Math.max(...im.map(([w, , x]) => x + w)), maxDown = Math.max(...im.map(([, , , y]) => 595.28 - y)); // landscape page height
+    ok('TC-85b sheet drawn inside top-left 60% × 60% of the landscape page', im.length === 1 && maxRight <= 841.89 * 0.6 + 0.5 && maxDown <= 595.28 * 0.6 + 0.5, `right ${maxRight.toFixed(0)}/505, bottom ${maxDown.toFixed(0)}/357`); }
   await shot('15-export-pdf');
   await click('#layers .layer:last-child .sheet-head [data-act=close]');
   const xlsxFile = await grab('xlsx');
@@ -180,17 +198,18 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
     const k = shiftMonth(monthKey(todayIso()), -1);
     S.places.push({ id: 'pta', name: 'கெம்பநாய்க்கன்பாளையம்', catId: 'c1', icon: null, hidden: false });
     const d = Object.keys(S.entries).filter(x => x.startsWith(k) && S.entries[x].status === 'duty').sort()[0];
-    S.entries[d].m = { ...S.entries[d].m, no: '2[school]', place: 'pta', half: true }; markDirty();
+    S.entries[d].m = { ...S.entries[d].m, no: '2[school]', place: 'pta', half: true }; S.entries[d].e = { no: '', place: null, text: '' }; markDirty();
     X.period = 'pick'; X.month = k; X.status = 'all'; renderExport();
   });
   const sd = await page.evaluate(() => {
     const k = shiftMonth(monthKey(todayIso()), -1); const D = sheetData();
     const duty = Object.values(S.entries).filter(e => e.date.startsWith(k) && e.status === 'duty');
-    return { dates: D.list.filter(r => r.date).length, duty: duty.length, total: D.total, sum: inr(duty.reduce((a, e) => a + (e.amt.fare || 0), 0)).replace('₹', ''), first: D.list[0], head: D.head, role: D.role, hol: D.list.some(r => /Holiday|Leave/.test(r.place)) };
+    return { merged: D.days.some(x => x.duties.length === 2) && D.list.length === D.days.reduce((n, x) => n + x.duties.length, 0) && D.list.filter(r => r.date).length === D.days.length, halfRows: D.days[0].duties.length, dates: D.list.filter(r => r.date).length, duty: duty.length, total: D.total, sum: inr(duty.reduce((a, e) => a + (e.amt.fare || 0), 0)).replace('₹', ''), first: D.list[0], head: D.head, role: D.role, hol: D.list.some(r => /Holiday|Leave/.test(r.place)) };
   });
   ok('TC-92 PDF sheet lists only worked days (no holidays/leave/empty days)', sd.dates === sd.duty && !sd.hol, `${sd.dates} vs ${sd.duty}`);
   ok('TC-93 PDF TOTAL = sum of the amounts', sd.total === sd.sum, `${sd.total} vs ${sd.sum}`);
   ok('TC-94 Half, text route no. and Tamil place on the sheet', sd.first.half === true && sd.first.no === '2[school]' && sd.first.place === 'கெம்பநாய்க்கன்பாளையம்', JSON.stringify(sd.first));
+  ok('TC-97d two-duty days: one Date/Amount for both rows; half day uses one row', sd.merged && sd.halfRows === 1);
   ok('TC-95 sheet header: "YYYY Month" and duty type "spare"', /^\d{4} [A-Z][a-z]+$/.test(sd.head) && sd.role === 'spare', sd.head + ' / ' + sd.role);
   const sheetPdf = await grab('pdf'); fs.copyFileSync(sheetPdf, OUT + 'duty-sheet-sample.pdf');
   await shot('15c-export-duty-sheet');
@@ -279,6 +298,9 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   await signIn(page, 'demo@example.com'); await page.waitForTimeout(1500);
   ok('TC-57 sign in again → unsynced change kept and uploaded', await page.evaluate(() => S.profile.phone === '9876500000') && srv.rowsFor('demo@example.com').some(r => r.kind === 'profile' && r.data.phone === '9876500000'));
   // Update banner (minor) and blocking screen (major)
+  await page.click('.tab[data-tab=settings]'); await page.evaluate(() => checkUpdate(true)); await page.waitForTimeout(500);
+  ok('TC-99 update channel not published → clear message + Download latest', (await page.textContent('#upd-set')).includes('aren’t switched on yet') && await page.isVisible('[data-act=downloadLatest]'));
+  await page.click('.tab[data-tab=home]');
   UPDATE.version = '1.0.999'; await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); }); await page.click('.tab[data-tab=settings]'); await page.click('[data-act=checkUpdate]'); await page.waitForTimeout(600);
   await page.click('.tab[data-tab=home]'); await page.waitForTimeout(300);
   ok('TC-89 update available → banner with Update now / Later', (await page.textContent('#v-home')).includes('Version 1.0.999 is available') && await page.isVisible('[data-act=updateLater]'));

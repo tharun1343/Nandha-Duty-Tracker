@@ -5,3 +5,4 @@ export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 export const UPDATE_URL = import.meta.env.VITE_UPDATE_URL || '';
 export const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0-dev';
+export const RELEASES_URL = import.meta.env.VITE_RELEASES_URL || '';
