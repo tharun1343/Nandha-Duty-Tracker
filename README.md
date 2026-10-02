@@ -8,7 +8,7 @@ A mobile app that replaces the printed Excel duty sheet (`Duty_Tracker_2026.xlsx
 |---|---|
 | `prototype/index.html` | Clickable prototype with sample data. Open it in a browser at phone width |
 | `prototype/icons/`, `prototype/icons.js` | Microsoft Fluent 3D emoji (MIT), bundled locally. Rebuild with `python3 prototype/build_icons.py` |
-| `prototype/tests/prototype.e2e.js` | Playwright click-through (88 checks): `node prototype/tests/prototype.e2e.js` |
+| `prototype/tests/prototype.e2e.js` | Playwright click-through (91 checks): `node prototype/tests/prototype.e2e.js`. Set `LIB_DIR=<node_modules>` to serve exceljs/jspdf locally when cdnjs is blocked |
 | `prototype/tools/make_artifact.py` | Bundles the prototype into one self-contained HTML file |
 | `docs/TEST-CASES.md` | Living test-case document |
 

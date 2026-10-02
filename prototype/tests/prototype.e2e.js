@@ -7,6 +7,11 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
 (async () => {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 360, height: 780 }, deviceScaleFactor: 2, colorScheme: 'light', hasTouch: true });
+  if (process.env.LIB_DIR) {
+    const map = { 'exceljs.min.js': 'exceljs/dist/exceljs.min.js', 'jspdf.umd.min.js': 'jspdf/dist/jspdf.umd.min.js', 'jspdf.plugin.autotable.min.js': 'jspdf-autotable/dist/jspdf.plugin.autotable.min.js' };
+    await ctx.route('https://cdnjs.cloudflare.com/**', r => { const f = map[r.request().url().split('/').pop()]; return f ? r.fulfill({ path: path.join(process.env.LIB_DIR, f), contentType: 'application/javascript' }) : r.abort(); });
+  }
+  await ctx.route('https://fonts.googleapis.com/**', r => r.abort()); await ctx.route('https://fonts.gstatic.com/**', r => r.abort());
   const page = await ctx.newPage();
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push('PAGEERROR ' + e.message));
@@ -131,7 +136,9 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   await click('[data-act=xStatus][data-v=duty]');
   await click('[data-act=xPeriod][data-v=month]');
   await click('[data-act=xStatus][data-v=all]');
-  await click('[data-act=xDl][data-f=csv]'); await page.waitForTimeout(300);
+  const grab = async f => { const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click(`[data-act=xDl][data-f=${f}]`)]); const to = OUT + dl.suggestedFilename(); await dl.saveAs(to); await page.waitForTimeout(500); return to; };
+  const csvFile = await grab('csv');
+  ok('TC-37b CSV file downloaded', fs.statSync(csvFile).size > 200, path.basename(csvFile));
   await shot('14-export-csv');
   const csv = await page.evaluate(() => buildCSV());
   ok('TC-37 CSV header + rows', csv.includes('Morning Duty') && csv.split('\r\n').length >= 29);
@@ -140,8 +147,14 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   ok('SEC-01 CSV formula injection neutralised', csv2.includes(`"'=HYPERLINK(""x"")"`) && csv2.includes("'+cmd"));
   await page.evaluate(() => { delete S.entries[todayIso()]; });
   await click('#layers .layer:last-child .sheet-head [data-act=close]');
-  await click('[data-act=xDl][data-f=pdf]'); await page.waitForTimeout(500);
+  const pdfFile = await grab('pdf');
+  ok('TC-72 real PDF downloaded', fs.readFileSync(pdfFile).slice(0, 5).toString() === '%PDF-', path.basename(pdfFile));
   await shot('15-export-pdf');
+  await click('#layers .layer:last-child .sheet-head [data-act=close]');
+  const xlsxFile = await grab('xlsx');
+  ok('TC-73 real XLSX downloaded', fs.readFileSync(xlsxFile).slice(0, 2).toString() === 'PK', path.basename(xlsxFile));
+  console.log('FILES', pdfFile, xlsxFile, csvFile);
+  await shot('15b-export-xlsx');
   await click('#layers .layer:last-child .sheet-head [data-act=close]');
 
   // ---- Settings

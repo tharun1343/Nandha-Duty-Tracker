@@ -1059,7 +1059,7 @@ function placeGroups() {
 }
 
 /* ---------------- Export ---------------- */
-const X = { period: 'month', month: monthKey(todayIso()), from: addDays(todayIso(), -13), to: todayIso(), status: 'all', empty: true, err: '' };
+const X = { busy: false, period: 'month', month: monthKey(todayIso()), from: addDays(todayIso(), -13), to: todayIso(), status: 'all', empty: true, err: '' };
 function exportRange() {
   const t = todayIso();
   if (X.period === 'month') { const k = monthKey(t); return { from: `${k}-01`, to: monthDates(k).at(-1), label: monthLabel(k), title: `${MON[+k.slice(5) - 1]} ${k.slice(0, 4)}` }; }
@@ -1105,9 +1105,7 @@ function renderExport() {
         : `<div class="empty-state">${ic('inbox', 48)}<p>${X.err ? 'Fix the dates above to see a preview.' : 'Nothing to export for this period and filter.'}</p><button class="btn ghost sm" data-act="xReset">Reset filters</button></div>`}
     </div>
     <div class="dlbtns">
-      <button class="btn green" data-act="xDl" data-f="pdf" ${rows.length ? '' : 'disabled'}>${ic('page', 20)}Download PDF</button>
-      <button class="btn green" data-act="xDl" data-f="xls" ${rows.length ? '' : 'disabled'}>${ic('chart', 20)}Download Excel</button>
-      <button class="btn ghost" data-act="xDl" data-f="csv" ${rows.length ? '' : 'disabled'}>${ic('clipboard', 20)}Download CSV</button>
+      ${[['pdf', 'green', 'page', 'Download PDF'], ['xlsx', 'green', 'chart', 'Download Excel'], ['csv', 'ghost', 'clipboard', 'Download CSV']].map(([f, c, icn, l]) => `<button class="btn ${c}" data-act="xDl" data-f="${f}" ${rows.length && !X.busy ? '' : 'disabled'}>${ic(icn, 20)}${X.busy === f ? 'Preparing…' : l}</button>`).join('')}
     </div>`;
 }
 function exportName(ext) { const r = exportRange(); const base = X.period === 'month' || X.period === 'pick' ? r.title.replace(' ', '-') : `${fmtD(r.from)}_to_${fmtD(r.to)}`; return `Duty_Tracker_${base}.${ext}`; }
@@ -1119,43 +1117,149 @@ function buildCSV() {
   rows.forEach(({ d, e }, i) => lines.push([i + 1, fmtD(d), WDL[parse(d).getDay()], e ? STATUS[e.status].label : '', e?.m.no || '', e ? placeName(e.m) : '', e?.e.no || '', e ? placeName(e.e) : '', ...flds.map(f => e?.amt[f.id] ?? ''), e?.note || ''].map(csvCell).join(',')));
   return '﻿' + lines.join('\r\n');
 }
+/* Shared export model: one row per day, used by the on-screen preview, PDF, Excel and CSV. */
+function exportData() {
+  const { r, rows } = exportRows(); const flds = enabledFields(); const p = S.profile;
+  const list = rows.map(({ d, e }, i) => ({
+    n: i + 1, date: fmtD(d), day: WDL[parse(d).getDay()],
+    status: e ? STATUS[e.status].label : (isOff(d) ? 'Holiday' : ''),
+    kind: e?.status === 'holiday' || (!e && isOff(d)) ? 'h' : e?.status === 'leave' ? 'lv' : '',
+    mNo: e?.m.no || '', mPl: e ? placeName(e.m) : '', eNo: e?.e.no || '', ePl: e ? placeName(e.e) : '',
+    amt: flds.map(f => e?.amt[f.id] ?? ''), note: e?.note || ''
+  }));
+  return {
+    r, flds, list, tot: totalsFor(rows.map(x => x.d)),
+    title: `Daily Duty Tracker — ${r.title}`,
+    metaL: [`Name: ${p.name || '—'}`, p.staffId && `Staff ID: ${p.staffId}`, p.depot && `Depot: ${p.depot}`].filter(Boolean).join('    '),
+    metaR: `Period: ${fmtD(r.from)} to ${fmtD(r.to)}`,
+    legend: `Legend: Pink rows = Holiday (${WDL[S.settings.weeklyOff] || 'weekly off'}) · Amber rows = Leave · Morning/Evening Duty: duty number and place · Generated ${fmtDW(todayIso())}`
+  };
+}
+const money0 = v => v === '' ? '' : inr(v).replace('₹', '');
 function paperHtml() {
-  const { r, rows } = exportRows(); const flds = enabledFields(); const tot = totalsFor(rows.map(x => x.d)); const p = S.profile;
-  const body = rows.map(({ d, e }, i) => `<tr class="${e?.status === 'holiday' || (!e && isOff(d)) ? 'h' : e?.status === 'leave' ? 'lv' : ''}"><td>${i + 1}</td><td>${fmtD(d)}</td><td>${WDL[parse(d).getDay()]}</td><td>${e ? STATUS[e.status].label : (isOff(d) ? 'Holiday' : '')}</td><td>${esc(e?.m.no || '')}${e && placeName(e.m) ? `<br><span style="color:#555">${esc(placeName(e.m))}</span>` : ''}</td><td>${esc(e?.e.no || '')}${e && placeName(e.e) ? `<br><span style="color:#555">${esc(placeName(e.e))}</span>` : ''}</td>${flds.map(f => `<td>${e?.amt[f.id] ? inr(e.amt[f.id]).replace('₹', '') : ''}</td>`).join('')}</tr>`).join('');
-  return `<div class="ttl">Daily Duty Tracker — ${esc(r.title)}</div>
-    <div class="meta"><span><b>Name:</b> ${esc(p.name || '—')}${p.staffId ? ` &nbsp; <b>Staff ID:</b> ${esc(p.staffId)}` : ''}${p.depot ? ` &nbsp; <b>Depot:</b> ${esc(p.depot)}` : ''}</span><span><b>Period:</b> ${fmtD(r.from)} to ${fmtD(r.to)}</span></div>
-    <table><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Status</th><th>Morning Duty</th><th>Evening Duty</th>${flds.map(f => `<th>${esc(f.name)} (₹)</th>`).join('')}</tr></thead><tbody>${body}
-    <tr class="tot"><td colspan="3">TOTALS</td><td>On Duty: ${tot.duty}</td><td>Morning: ${tot.m}</td><td>Evening: ${tot.e}</td>${flds.map(f => `<td>${inr(tot.amt[f.id]).replace('₹', '')}</td>`).join('')}</tr></tbody></table>
-    <div class="legend">Legend: Pink rows = Holiday (${WDL[S.settings.weeklyOff] || 'weekly off'}) · Amber rows = Leave · Morning/Evening Duty: duty number and place · Generated ${fmtDW(todayIso())}</div>`;
+  const D = exportData();
+  const duty = (no, pl) => `${esc(no)}${pl ? `<br><span style="color:#555">${esc(pl)}</span>` : ''}`;
+  const body = D.list.map(x => `<tr class="${x.kind}"><td>${x.n}</td><td>${x.date}</td><td>${x.day}</td><td>${x.status}</td><td>${duty(x.mNo, x.mPl)}</td><td>${duty(x.eNo, x.ePl)}</td>${x.amt.map(a => `<td>${money0(a)}</td>`).join('')}</tr>`).join('');
+  return `<div class="ttl">${esc(D.title)}</div><div class="meta"><span>${esc(D.metaL)}</span><span>${esc(D.metaR)}</span></div>
+    <table><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Status</th><th>Morning Duty</th><th>Evening Duty</th>${D.flds.map(f => `<th>${esc(f.name)} (₹)</th>`).join('')}</tr></thead><tbody>${body}
+    <tr class="tot"><td colspan="3">TOTALS</td><td>On Duty: ${D.tot.duty}</td><td>Morning: ${D.tot.m}</td><td>Evening: ${D.tot.e}</td>${D.flds.map(f => `<td>${money0(D.tot.amt[f.id])}</td>`).join('')}</tr></tbody></table>
+    <div class="legend">${esc(D.legend)}</div>`;
 }
-function buildXLS() {
-  const paperCss = `body{font-family:Calibri,Arial}.ttl{background:#1F4E79;color:#fff;font-weight:bold;font-size:14pt;text-align:center}th{background:#2E75B6;color:#fff;border:1px solid #9DB7D3}td{border:1px solid #C9D6E3;text-align:center}tr.h td{background:#FFE4E1}tr.lv td{background:#FFF1D9}tr.tot td{background:#D6E4F0;color:#1F4E79;font-weight:bold}`;
-  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>${paperCss}</style></head><body>${paperHtml()}</body></html>`;
+/* PDF and Excel makers load on first use (bundled locally in the real app). */
+const LIBS = {
+  xlsx: ['https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'],
+  pdf: ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js']
+};
+const scriptLoads = {};
+function loadScript(src) {
+  return scriptLoads[src] || (scriptLoads[src] = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = src; s.onload = res;
+    s.onerror = () => { delete scriptLoads[src]; s.remove(); rej(new Error('Could not load ' + src)); };
+    document.head.append(s);
+  }));
 }
-function tryDownload(name, mime, content) {
-  try { const url = URL.createObjectURL(new Blob([content], { type: mime })); const a = document.createElement('a'); a.href = url; a.download = name; a.rel = 'noopener'; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000); } catch (e) {}
+async function loadLibs(kind) { for (const u of LIBS[kind]) await loadScript(u); }
+async function buildPDF() {
+  await loadLibs('pdf');
+  const D = exportData(); const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' }); const W = doc.internal.pageSize.getWidth();
+  doc.setFillColor(31, 78, 121); doc.rect(36, 30, W - 72, 26, 'F');
+  doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text(D.title, W / 2, 47, { align: 'center' });
+  doc.setTextColor(40); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+  doc.text(D.metaL, 36, 70); doc.text(D.metaR, W - 36, 70, { align: 'right' });
+  const duty = (no, pl) => [no, pl].filter(Boolean).join('\n');
+  doc.autoTable({
+    startY: 78, margin: { left: 36, right: 36 }, theme: 'grid', showFoot: 'lastPage',
+    head: [['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Evening Duty', ...D.flds.map(f => `${f.name} (Rs.)`)]],
+    body: D.list.map(x => [x.n, x.date, x.day, x.status, duty(x.mNo, x.mPl), duty(x.eNo, x.ePl), ...x.amt.map(money0)]),
+    foot: [['TOTALS', '', '', `On Duty: ${D.tot.duty}`, `Morning: ${D.tot.m}`, `Evening: ${D.tot.e}`, ...D.flds.map(f => money0(D.tot.amt[f.id]))]],
+    styles: { fontSize: 7.5, cellPadding: 2.5, halign: 'center', valign: 'middle', lineColor: [201, 214, 227], lineWidth: 0.5, textColor: 20 },
+    headStyles: { fillColor: [46, 117, 182], textColor: 255, fontStyle: 'bold' },
+    footStyles: { fillColor: [214, 228, 240], textColor: [31, 78, 121], fontStyle: 'bold' },
+    didParseCell: d => { if (d.section !== 'body') return; const k = D.list[d.row.index].kind; if (k === 'h') d.cell.styles.fillColor = [255, 228, 225]; else if (k === 'lv') d.cell.styles.fillColor = [255, 241, 217]; }
+  });
+  doc.setFontSize(7.5); doc.setTextColor(70);
+  doc.text(doc.splitTextToSize(D.legend.replace(/·/g, '|'), W - 72), 36, doc.lastAutoTable.finalY + 14);
+  return doc.output('arraybuffer');
 }
-function doExport(fmt) {
-  const { rows } = exportRows(); if (!rows.length) return toast('Nothing to export for this period', 'warn');
-  const name = exportName(fmt === 'xls' ? 'xls' : fmt);
-  let previewHtml;
-  if (fmt === 'csv') { const csv = buildCSV(); tryDownload(name, 'text/csv;charset=utf-8', csv); previewHtml = `<div class="xl" style="overflow:auto"><pre style="margin:0;padding:10px;font:11px/1.5 var(--f-mono);white-space:pre">${esc(csv.replace('﻿', '').split('\r\n').slice(0, 14).join('\n'))}${rows.length > 13 ? '\n…' : ''}</pre></div>`; }
-  else if (fmt === 'xls') { tryDownload(name, 'application/vnd.ms-excel', buildXLS()); previewHtml = `<div class="paper-wrap"><div class="paper" id="paper">${paperHtml()}</div></div>`; }
-  else { previewHtml = `<div class="paper-wrap"><div class="paper" id="paper">${paperHtml()}</div></div>`; printPaper(); }
-  openLayer(`<div class="sheet-card" style="height:92%">${sheetHead('Export ready')}<div class="sheet-body"><div class="filecard">${ic(fmt === 'pdf' ? 'page' : fmt === 'xls' ? 'chart' : 'clipboard', 40)}<div class="grow"><b>${esc(name)}</b><span class="muted small">${plural(rows.length, 'row')} · ${fmt === 'pdf' ? 'A4 portrait, same look as your Excel print' : fmt === 'xls' ? 'Opens in Excel with colours and totals' : 'Plain data, one row per day'}</span></div></div>${previewHtml}</div><div class="sheet-foot"><button class="btn green block" data-act="xAgain" data-f="${fmt}">${fmt === 'pdf' ? 'Save as PDF again' : 'Download again'}</button></div></div>`,
-    { onMount: el => fitPaper(el) });
-  toast(`${name} exported`, 'ok');
+async function buildXLSX() {
+  await loadLibs('xlsx');
+  const D = exportData(); const wb = new window.ExcelJS.Workbook(); wb.creator = 'Daily Duty Tracker';
+  const ws = wb.addWorksheet(D.r.title.slice(0, 31).replace(/[\\/?*[\]:]/g, '-'), { pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+  const head = ['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Morning Place', 'Evening Duty', 'Evening Place', ...D.flds.map(f => `${f.name} (₹)`), 'Note'];
+  const n = head.length, first = 4, last = first + D.list.length - 1;
+  const fill = argb => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+  const thin = { style: 'thin', color: { argb: 'FFC9D6E3' } }; const border = { top: thin, left: thin, bottom: thin, right: thin };
+  ws.mergeCells(1, 1, 1, n); const t = ws.getCell(1, 1);
+  Object.assign(t, { value: D.title, font: { bold: true, size: 14, color: { argb: 'FFFFFFFF' } }, fill: fill('FF1F4E79'), alignment: { horizontal: 'center', vertical: 'middle' } }); ws.getRow(1).height = 24;
+  ws.mergeCells(2, 1, 2, n); ws.getCell(2, 1).value = `${D.metaL}    ${D.metaR}`; ws.getCell(2, 1).font = { size: 10, color: { argb: 'FF333333' } };
+  const hr = ws.getRow(3); hr.values = head; hr.eachCell(c => Object.assign(c, { font: { bold: true, color: { argb: 'FFFFFFFF' } }, fill: fill('FF2E75B6'), alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }, border }));
+  const num = v => v === '' ? null : /^\d+$/.test(v) ? +v : v; const txt = v => v === '' ? null : v;
+  D.list.forEach((x, i) => {
+    const row = ws.getRow(first + i);
+    row.values = [x.n, x.date, x.day, txt(x.status), num(x.mNo), txt(x.mPl), num(x.eNo), txt(x.ePl), ...x.amt.map(a => a === '' ? null : +a), txt(x.note)];
+    row.eachCell({ includeEmpty: true }, (c, col) => { c.border = border; c.alignment = { horizontal: col === 6 || col === 8 || col === n ? 'left' : 'center' }; if (x.kind) c.fill = fill(x.kind === 'h' ? 'FFFFE4E1' : 'FFFFF1D9'); });
+  });
+  const col = k => ws.getColumn(k).letter;
+  const tr = ws.getRow(last + 1);
+  tr.values = ['TOTALS', '', '',
+    { formula: `COUNTIF(${col(4)}${first}:${col(4)}${last},"On duty")`, result: D.tot.duty },
+    { formula: `COUNTA(${col(5)}${first}:${col(5)}${last})`, result: D.tot.m }, '',
+    { formula: `COUNTA(${col(7)}${first}:${col(7)}${last})`, result: D.tot.e }, '',
+    ...D.flds.map((f, i) => ({ formula: `SUM(${col(9 + i)}${first}:${col(9 + i)}${last})`, result: D.tot.amt[f.id] })), ''];
+  tr.eachCell({ includeEmpty: true }, c => Object.assign(c, { font: { bold: true, color: { argb: 'FF1F4E79' } }, fill: fill('FFD6E4F0'), border, alignment: { horizontal: 'center' } }));
+  D.flds.forEach((f, i) => { ws.getColumn(9 + i).numFmt = '[>=100000]##\\,##\\,##0;##,##0'; });
+  ws.mergeCells(last + 3, 1, last + 3, n); ws.getCell(last + 3, 1).value = D.legend; ws.getCell(last + 3, 1).fill = fill('FFDAEEF3'); ws.getCell(last + 3, 1).font = { size: 9 };
+  [5, 12, 11, 9, 12, 18, 12, 18, ...D.flds.map(() => 13), 28].forEach((w, i) => ws.getColumn(i + 1).width = w);
+  ws.views = [{ state: 'frozen', ySplit: 3 }];
+  return await wb.xlsx.writeBuffer();
 }
-function fitPaper(el) { const p = el.querySelector('#paper'); if (!p) return; const w = el.querySelector('.paper-wrap').clientWidth - 24; const s = Math.min(1, w / 595); p.style.transform = `scale(${s})`; p.style.marginBottom = `${-(1 - s) * p.offsetHeight}px`; p.parentElement.style.overflow = 'hidden'; }
-function printPaper() {
+/* Saving: inside claude.ai the viewer's download capability asks the viewer first;
+   opened directly in a browser, a normal download link is used. */
+let dlCap;
+async function getDownloads() {
+  if (dlCap !== undefined) return dlCap;
+  try { dlCap = window.claude && typeof window.claude.use === 'function' ? await window.claude.use('downloads') : null; } catch (e) { dlCap = null; }
+  return dlCap;
+}
+const MIME = { csv: 'text/csv;charset=utf-8', pdf: 'application/pdf', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+async function saveFile(name, data) {
+  const dl = await getDownloads();
+  if (dl) {
+    try { await dl.save({ filename: name, data }); return 'saved'; }
+    catch (e) { return ({ declined: 'declined', rate_limited: 'busy' })[e && e.code] || 'failed'; }
+  }
   try {
-    const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0'; document.body.append(f);
-    const css = [...document.styleSheets].map(s => { try { return [...s.cssRules].map(r => r.cssText).filter(t => t.includes('.paper')).join('\n'); } catch (e) { return ''; } }).join('\n');
-    f.contentDocument.write(`<!doctype html><html><head><title>${esc(exportName('pdf'))}</title><style>@page{size:A4 portrait;margin:12mm}body{margin:0}${css}.paper{box-shadow:none;width:auto;padding:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body><div class="paper">${paperHtml()}</div></body></html>`);
-    f.contentDocument.close();
-    setTimeout(() => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) {} setTimeout(() => f.remove(), 2000); }, 250);
-  } catch (e) {}
+    const url = URL.createObjectURL(new Blob([data], { type: MIME[name.split('.').pop()] }));
+    const a = document.createElement('a'); a.href = url; a.download = name; a.rel = 'noopener'; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000); return 'saved';
+  } catch (e) { return 'failed'; }
 }
+const FMT = { pdf: { label: 'PDF', icon: 'page', note: 'A4 portrait, same look as your Excel print' }, xlsx: { label: 'Excel', icon: 'chart', note: 'Excel workbook with colours and live totals (SUM / COUNTIF)' }, csv: { label: 'CSV', icon: 'clipboard', note: 'Plain data, one row per day' } };
+async function doExport(fmt, again) {
+  if (X.busy) return;
+  const { rows } = exportRows(); if (!rows.length) return toast('Nothing to export for this period', 'warn');
+  const name = exportName(fmt);
+  X.busy = fmt; renderExport(); updateAgainBtn();
+  let data;
+  try { data = fmt === 'csv' ? buildCSV() : fmt === 'pdf' ? await buildPDF() : await buildXLSX(); }
+  catch (e) { X.busy = false; renderExport(); updateAgainBtn(); return toast(`Couldn't make the ${FMT[fmt].label} file. Check your internet connection and try again.`, 'err'); }
+  if (!again) {
+    const preview = fmt === 'csv'
+      ? `<div class="xl" style="overflow:auto"><pre style="margin:0;padding:10px;font:11px/1.5 var(--f-mono);white-space:pre">${esc(data.replace('﻿', '').split('\r\n').slice(0, 14).join('\n'))}${rows.length > 13 ? '\n…' : ''}</pre></div>`
+      : `<div class="paper-wrap"><div class="paper" id="paper">${paperHtml()}</div></div>`;
+    openLayer(`<div class="sheet-card" style="height:92%">${sheetHead('Export')}<div class="sheet-body"><div class="filecard">${ic(FMT[fmt].icon, 40)}<div class="grow"><b>${esc(name)}</b><span class="muted small">${plural(rows.length, 'row')} · ${FMT[fmt].note}</span></div></div>${preview}</div><div class="sheet-foot"><button class="btn green block" data-act="xAgain" data-f="${fmt}" id="x-again">Download again</button></div></div>`,
+      { onMount: el => fitPaper(el) });
+  }
+  const res = await saveFile(name, data);
+  X.busy = false; renderExport(); updateAgainBtn();
+  if (res === 'saved') toast(`${name} saved`, 'ok');
+  else if (res === 'declined') toast('Download cancelled', 'info');
+  else if (res === 'busy') toast('A download is already waiting for your answer', 'warn');
+  else toast(`Couldn't save ${name}. Try again.`, 'err');
+}
+function updateAgainBtn() { const b = $('#x-again'); if (b) { b.disabled = !!X.busy; b.textContent = X.busy ? 'Preparing…' : 'Download again'; } }
+function fitPaper(el) { const p = el.querySelector('#paper'); if (!p) return; const w = el.querySelector('.paper-wrap').clientWidth - 24; const s = Math.min(1, w / 595); p.style.transform = `scale(${s})`; p.style.marginBottom = `${-(1 - s) * p.offsetHeight}px`; p.parentElement.style.overflow = 'hidden'; }
 
 /* ---------------- Settings ---------------- */
 function secHtml(id, icon, title, sub, body) {
@@ -1412,7 +1516,7 @@ const ACT = {
   xEmpty: () => { X.empty = !X.empty; renderExport(); },
   xReset: () => { Object.assign(X, { period: 'month', status: 'all', empty: true }); renderExport(); },
   xDl: b => { if (X.err) return toast(X.err, 'err'); doExport(b.dataset.f); },
-  xAgain: b => { const f = b.dataset.f; if (f === 'pdf') printPaper(); else if (f === 'csv') tryDownload(exportName('csv'), 'text/csv;charset=utf-8', buildCSV()); else tryDownload(exportName('xls'), 'application/vnd.ms-excel', buildXLS()); toast(`${exportName(f)} exported`, 'ok'); },
+  xAgain: b => doExport(b.dataset.f, true),
   // Settings
   sec: b => { const id = b.dataset.id; const el = $('#sec-' + id); const open = !el.classList.contains('open'); el.classList.toggle('open', open); b.setAttribute('aria-expanded', open); if (open) S.openSecs[id] = 1; else delete S.openSecs[id]; save(); },
   editProfile: () => openProfile(),
@@ -1447,7 +1551,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter') { if (e.targe
 function renderAll() { renderTop(); renderHome(); renderRecords(); renderExport(); renderSettings(); }
 
 /* ---------------- Boot ---------------- */
-applyLook(); fillIcons();
+applyLook(); fillIcons(); setTimeout(getDownloads, 0);
 $('#auth-logo').innerHTML = ic('bus', 52); $('#ic-env').innerHTML = ic('envelope', 20);
 if (S.auth.signedIn && S.profile.name) enterApp(); else { $('#email').value = S.auth.email || ''; showAuth(S.auth.signedIn ? 'name' : 'email'); }
 setInterval(() => { if (!$('#main').hidden) updateSync(); }, 30000);

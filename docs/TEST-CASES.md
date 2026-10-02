@@ -8,7 +8,7 @@ Living document. Every feature or bug fix adds cases here.
 - **Not run yet**: written down, not yet exercised.
 - **Build**: can only be tested in the real app (Supabase, Android APK, real phone).
 
-Last prototype run: 88 automated checks, 0 failures, no app console errors. The only console error was Google Fonts being blocked by the test sandbox's network proxy.
+Last prototype run: 91 automated checks, 0 failures, no app console errors. The only console error was Google Fonts being blocked by the test sandbox's network proxy.
 
 ---
 
@@ -89,8 +89,9 @@ Last prototype run: 88 automated checks, 0 failures, no app console errors. The 
 | TC-70 | Export | Status filter | Choose On duty | Only on-duty rows; empty-days toggle hidden | Medium | Pass (auto) |
 | TC-71 | Export | Include empty days | Toggle off | Days with no entry left out | Medium | Pass (auto) |
 | TC-37 | Export | CSV | Download CSV | Header + one row per day; ₹ amounts; opens in Excel (UTF-8 BOM) | High | Pass (auto) |
-| TC-72 | Export | PDF | Download PDF | A4 portrait, Excel colours: navy title, blue header, pink Sundays, totals row; name/ID/depot in header | High | Pass (visual) |
-| TC-73 | Export | Excel | Download Excel | Opens in Excel with colours and totals | High | Preview checked; file not yet opened in Excel. Real .xlsx in Build |
+| TC-83 | Export | Save inside claude.ai | Tap a download on the shared page | Viewer asks to confirm the file name; Cancel → "Download cancelled" toast | High | Not run yet (needs the claude.ai viewer) |
+| TC-72 | Export | PDF | Download PDF | Real A4 PDF: navy title, blue header, pink Sundays, amber leave, totals row; name/ID/depot in header; a month fits one page | High | Pass (auto) + visual |
+| TC-73 | Export | Excel | Download Excel | Real .xlsx: same colours, separate place columns, numbers as numbers, live `COUNTIF`/`COUNTA`/`SUM` totals like the original sheet; blank cells left empty | High | Pass (auto) |
 | TC-74 | Export | Real files on phone | Export on Android | File saved/shared (WhatsApp, Files) | High | Build |
 
 ## Settings, places, categories
@@ -151,4 +152,4 @@ Last prototype run: 88 automated checks, 0 failures, no app console errors. The 
 ## Not testable in the prototype
 - Real email codes, real cloud sync, two-device conflicts (needs Supabase).
 - Real file saving and sharing on Android, portrait lock, the hardware back button (needs the APK on a phone).
-- In the claude.ai preview, downloads and the print dialog are blocked by the viewer. Exports still show a full preview. Open `prototype/index.html` in a normal browser to get the real files.
+- PDF and Excel files are made with jsPDF and ExcelJS, loaded from cdnjs the first time you export, so the prototype needs internet for those two. The real app will bundle them so exports work offline.
