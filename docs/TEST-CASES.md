@@ -44,7 +44,7 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 |---|---|---|---|---|---|---|
 | TC-11 | Entry | Open form | Tap **+** | "Add entry" sheet, today's date, status from weekday (weekly off → Holiday) | High | Pass (auto) |
 | TC-12 | Entry | Nothing filled | On duty → **Add entry** | "Add a morning or evening duty number, or an amount." and summary "Please fix…" | High | Pass (auto) |
-| TC-13 | Entry | Duty number digits only | Type `87a52x` | Field shows `8752`; max 6 digits | High | Pass (auto) |
+| TC-13 | Entry | Route number | Type `88[school]!` | Field keeps `88[school]` (letters, digits, [ ] ( ) / . - ; up to 12) | High | Pass (auto) |
 | TC-14 | Entry | Place search | Place dropdown → type "bhav" | Only Bhavani shown | Medium | Pass (auto) |
 | TC-15 | Entry | Pick place | Tap a place | Place shown in the field | High | Pass (auto) |
 | TC-16 | Entry | Other place | Dropdown → **Other (type manually)** | "Place name" input + "Save to my places" (on by default) | High | Pass (auto) |
@@ -94,7 +94,12 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 | TC-71 | Export | Include empty days | Toggle off | Days with no entry left out | Medium | Pass (auto) |
 | TC-37 | Export | CSV | Download CSV | Header + one row per day; ₹ amounts; opens in Excel (UTF-8 BOM) | High | Pass (auto) |
 | TC-83 | Export | Save inside claude.ai | Tap a download on the shared page | Viewer asks to confirm the file name; Cancel → "Download cancelled" toast | High | Not run yet (needs the claude.ai viewer) |
-| TC-72 | Export | PDF | Download PDF | Real A4 PDF: navy title; Name / Staff ID / Depot / Period block in the sheet's TOTALS colours (light-blue labels, pale-blue values); blue header; pink Sundays with red "Holiday"; amber leave; two-row TOTALS like the sheet; no legend | High | Pass (auto) + visual |
+| TC-72 | Export | PDF duty sheet | Download PDF | Same structure as the paper "spare" sheet (Nandha_CLG.pdf, Surya table): month (purple) · name (red) · duty type; Date \| Route.no \| Half \| place \| Amount; worked days only; at least 20 rows; Signature / TOTAL (green); white background; top-left 60% × 60% of A4 | High | Pass (auto) + visual |
+| TC-92 | Export | PDF rows | Export a month | Only on-duty days; holidays, leave and empty days left out; a day with morning + evening duty uses two rows, amount on the first | High | Pass (auto) |
+| TC-93 | Export | PDF total | Export a month | TOTAL equals the sum of the amounts | High | Pass (auto) |
+| TC-94 | Export | Tamil places | Place named கெம்பநாய்க்கன்பாளையம், Half duty, route `2[school]` | Printed correctly (Tamil shaped properly) | High | Pass (auto) + visual |
+| TC-95 | Export | Sheet header | Export a month | "2026 September", profile name, duty type (Settings → Profile → Duty type, default "spare") | Medium | Pass (auto) |
+| TC-96 | Entry | Half duty | Type a route no. | "Half duty" option appears; saved and shown as "Half" in Records and on the sheet | High | Pass (auto) |
 | TC-84 | Export | No legend | Export PDF / Excel | No legend line in either file | High | Pass (auto) |
 | TC-85 | Export | Print area | Export a month as PDF | Whole sheet inside the top-left 60% of the A4 width and height; rest of the page blank for cutting; font shrinks (9 → 6 pt) to fit; ranges longer than a month continue on more pages inside the same area | High | Pass (auto) |
 | TC-73 | Export | Excel | Download Excel | Real .xlsx: same colours, separate place columns, numbers as numbers, live `COUNTIF`/`COUNTA`/`SUM` totals like the original sheet; blank cells left empty | High | Pass (auto) |

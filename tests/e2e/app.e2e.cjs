@@ -62,8 +62,12 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   ok('TC-12 empty duty → block error + summary', (await page.isVisible('#blk-err.show')) && (await page.textContent('#ef-sum')).includes('fix'));
   await shot('05-add-entry-errors');
   // fill duty + place via picker
-  await page.fill('#no-m', '87a52x'); 
-  ok('TC-13 duty no strips non-digits', (await page.inputValue('#no-m')) === '8752');
+  await page.fill('#no-m', '88[school]!'); await page.waitForTimeout(150);
+  ok('TC-13 route no. keeps letters/brackets, drops other symbols', (await page.inputValue('#no-m')) === '88[school]');
+  ok('TC-96 "Half duty" option appears once a route no. is typed', await page.isVisible('#shift-m [data-act=toggleHalf]'));
+  await page.fill('#no-m', ''); await page.waitForTimeout(150);
+  ok('TC-96b … and hides when it is cleared', !(await page.isVisible('#shift-m [data-act=toggleHalf]')));
+  await page.fill('#no-m', '8752'); await page.waitForTimeout(150);
   await click('#shift-m [data-act=pickPlace]');
   await shot('06-place-picker');
   await page.fill('#pk-q', 'bhav'); await page.waitForTimeout(200);
@@ -161,15 +165,35 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   { const pdf = fs.readFileSync(pdfFile).toString('latin1');
     ok('TC-84 PDF has no legend', !/Legend/i.test(pdf));
     ok('TC-85 month fits on one page', (pdf.match(/\/Type \/Page\b(?!s)/g) || []).length === 1);
-    const xs = [...pdf.matchAll(/(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) re/g)].map(m => [+m[1], +m[2], +m[3], +m[4]]);
-    const maxRight = Math.max(...xs.map(([x, , w]) => Math.max(x, x + w))), maxDown = Math.max(...xs.map(([, y, , h]) => 841.89 - Math.min(y, y + h)));
-    ok('TC-85b everything drawn inside top-left 60% × 60%', xs.length > 0 && maxRight <= 595.28 * 0.6 + 0.5 && maxDown <= 841.89 * 0.6 + 0.5, `${xs.length} boxes, right ${maxRight.toFixed(0)}/357, bottom ${maxDown.toFixed(0)}/505`); }
+    const im = [...pdf.matchAll(/([\d.]+) 0 0 ([\d.]+) ([\d.]+) ([\d.]+) cm/g)].map(m => [+m[1], +m[2], +m[3], +m[4]]);
+    const maxRight = Math.max(...im.map(([w, , x]) => x + w)), maxDown = Math.max(...im.map(([, , , y]) => 841.89 - y));
+    ok('TC-85b sheet drawn inside top-left 60% × 60% of A4', im.length === 1 && maxRight <= 595.28 * 0.6 + 0.5 && maxDown <= 841.89 * 0.6 + 0.5, `right ${maxRight.toFixed(0)}/357, bottom ${maxDown.toFixed(0)}/505`); }
   await shot('15-export-pdf');
   await click('#layers .layer:last-child .sheet-head [data-act=close]');
   const xlsxFile = await grab('xlsx');
   ok('TC-73 real XLSX downloaded', fs.readFileSync(xlsxFile).slice(0, 2).toString() === 'PK', path.basename(xlsxFile));
   
   await shot('15b-export-xlsx');
+  await click('#layers .layer:last-child .sheet-head [data-act=close]');
+  // Duty sheet like the paper "spare" sheet: worked days only, Half marker, text route no., Tamil place, total
+  await page.evaluate(() => {
+    const k = shiftMonth(monthKey(todayIso()), -1);
+    S.places.push({ id: 'pta', name: 'கெம்பநாய்க்கன்பாளையம்', catId: 'c1', icon: null, hidden: false });
+    const d = Object.keys(S.entries).filter(x => x.startsWith(k) && S.entries[x].status === 'duty').sort()[0];
+    S.entries[d].m = { ...S.entries[d].m, no: '2[school]', place: 'pta', half: true }; markDirty();
+    X.period = 'pick'; X.month = k; X.status = 'all'; renderExport();
+  });
+  const sd = await page.evaluate(() => {
+    const k = shiftMonth(monthKey(todayIso()), -1); const D = sheetData();
+    const duty = Object.values(S.entries).filter(e => e.date.startsWith(k) && e.status === 'duty');
+    return { dates: D.list.filter(r => r.date).length, duty: duty.length, total: D.total, sum: inr(duty.reduce((a, e) => a + (e.amt.fare || 0), 0)).replace('₹', ''), first: D.list[0], head: D.head, role: D.role, hol: D.list.some(r => /Holiday|Leave/.test(r.place)) };
+  });
+  ok('TC-92 PDF sheet lists only worked days (no holidays/leave/empty days)', sd.dates === sd.duty && !sd.hol, `${sd.dates} vs ${sd.duty}`);
+  ok('TC-93 PDF TOTAL = sum of the amounts', sd.total === sd.sum, `${sd.total} vs ${sd.sum}`);
+  ok('TC-94 Half, text route no. and Tamil place on the sheet', sd.first.half === true && sd.first.no === '2[school]' && sd.first.place === 'கெம்பநாய்க்கன்பாளையம்', JSON.stringify(sd.first));
+  ok('TC-95 sheet header: "YYYY Month" and duty type "spare"', /^\d{4} [A-Z][a-z]+$/.test(sd.head) && sd.role === 'spare', sd.head + ' / ' + sd.role);
+  const sheetPdf = await grab('pdf'); fs.copyFileSync(sheetPdf, OUT + 'duty-sheet-sample.pdf');
+  await shot('15c-export-duty-sheet');
   await click('#layers .layer:last-child .sheet-head [data-act=close]');
 
   // ---- Settings

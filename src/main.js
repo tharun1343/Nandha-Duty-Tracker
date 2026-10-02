@@ -6,6 +6,7 @@ import '@fontsource/figtree/700.css';
 import '@fontsource/figtree/800.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
+import '@fontsource/noto-sans-tamil/700.css';
 import './styles.css';
 import { ICONS } from './icons.js';
 import { APP_VERSION, UPDATE_URL } from './config.js';
@@ -50,7 +51,7 @@ function freshState() {
   return {
     v: 2,
     auth: { email: '' },
-    profile: { name: '', avatar: 'bus', photo: null, staffId: '', depot: '', phone: '' },
+    profile: { name: '', avatar: 'bus', photo: null, staffId: '', depot: '', phone: '', designation: 'spare' },
     settings: { theme: 'system', palette: 'navy', text: 'm', bold: false, weeklyOff: 0, reminder: { on: false, time: '20:00' } },
     categories: [
       { id: 'c1', name: 'Villages', icon: 'house' },
@@ -333,7 +334,7 @@ function renderTop() {
 /* ---------------- Home ---------------- */
 function shiftTicket(label, icon, x) {
   if (!x.no && !placeName(x)) return `<div class="ticket"><span class="k">${ic(icon, 16)}${label}</span><span class="no muted">—</span><span class="pl">No duty</span></div>`;
-  return `<div class="ticket"><span class="k">${ic(icon, 16)}${label}</span><span class="no">${esc(x.no || '—')}</span><span class="pl">${esc(placeName(x) || 'No place')}</span></div>`;
+  return `<div class="ticket"><span class="k">${ic(icon, 16)}${label}${x.half ? ' · Half' : ''}</span><span class="no">${esc(x.no || '—')}</span><span class="pl">${esc(placeName(x) || 'No place')}</span></div>`;
 }
 function renderHome() {
   const t = todayIso(), e = S.entries[t], mk = monthKey(t);
@@ -396,7 +397,7 @@ function renderRecords() {
       cls += ' s-' + e.status;
       const tg = `<span class="tag ${e.status}">${ic(STATUS[e.status].icon, 14)}${STATUS[e.status].label}</span>`;
       if (e.status === 'duty') {
-        const ln = (icn, x) => (x.no || placeName(x)) ? `<div class="dl">${ic(icn, 16)}<span class="mono">${esc(x.no || '—')}</span><span class="pl">${esc(placeName(x))}</span></div>` : '';
+        const ln = (icn, x) => (x.no || placeName(x)) ? `<div class="dl">${ic(icn, 16)}<span class="mono">${esc(x.no || '—')}</span>${x.half ? '<span class="tag off">Half</span>' : ''}<span class="pl">${esc(placeName(x))}</span></div>` : '';
         body = `<div class="dl">${tg}${e.note ? ic('memo', 15) : ''}</div>${ln('sunrise', e.m)}${ln('sunset', e.e)}`;
       } else body = `<div class="dl">${tg}</div>${e.note ? `<div class="dl"><span class="pl">${esc(e.note)}</span></div>` : ''}`;
     } else if (fut) { cls += ' future'; body = `<div class="dl muted">${off ? 'Weekly off' : 'Upcoming'}</div>`; }
@@ -428,7 +429,7 @@ function monthOptions() {
 
 /* ---------------- Entry sheet (add / edit) ---------------- */
 let F = null;
-const blankShift = () => ({ no: '', place: null, text: '', other: false, save: true });
+const blankShift = () => ({ no: '', place: null, text: '', half: false, other: false, save: true });
 function defaultStatus(d) { return isOff(d) ? 'holiday' : 'duty'; }
 function openEntry(date, prefill) {
   const ex = S.entries[date];
@@ -451,11 +452,12 @@ function shiftHtml(s, label, icon) {
   const rec = recentDuty(s);
   return `<div class="shift" id="shift-${s}"><div class="shift-h">${ic(icon, 24)}<span class="grow">${label}</span>${(x.no || x.place || x.other) ? `<button class="linkbtn small" data-act="clearShift" data-s="${s}">Clear</button>` : ''}</div>
     <div class="grid2">
-      <div class="field ${err[s + '.no'] ? 'err' : ''}" data-k="${s}.no"><label for="no-${s}">Duty no.</label><div class="input mono"><input id="no-${s}" data-bind="${s}.no" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="e.g. 8752" value="${esc(x.no)}" autocomplete="off"></div><div class="msg">${esc(err[s + '.no'] || '')}</div></div>
+      <div class="field ${err[s + '.no'] ? 'err' : ''}" data-k="${s}.no"><label for="no-${s}">Duty no.</label><div class="input mono"><input id="no-${s}" data-bind="${s}.no" autocapitalize="off" spellcheck="false" maxlength="12" placeholder="e.g. 88" value="${esc(x.no)}" autocomplete="off"></div><div class="msg">${esc(err[s + '.no'] || '')}</div></div>
       <div class="field" data-k="${s}.place"><label>Place</label><button class="input" data-act="pickPlace" data-s="${s}">${ic('pin', 18)}<span class="val ${plVal ? '' : 'ph'}">${esc(plVal || 'Select')}</span><span class="caret">▾</span></button></div>
     </div>
     ${x.other ? `<div class="field ${err[s + '.text'] ? 'err' : ''}" data-k="${s}.text"><label for="tx-${s}">Place name <span class="req">*</span></label><div class="input"><input id="tx-${s}" data-bind="${s}.text" maxlength="40" placeholder="Type the place name" value="${esc(x.text)}" autocomplete="off"></div><div class="msg">${esc(err[s + '.text'] || '')}</div>
       <button class="checkrow" data-act="toggleSave" data-s="${s}"><span class="checkbox ${x.save ? 'on' : ''}">✓</span>Save to my places for next time</button></div>` : ''}
+    ${x.no ? `<button class="checkrow" data-act="toggleHalf" data-s="${s}" aria-pressed="${!!x.half}"><span class="checkbox ${x.half ? 'on' : ''}">✓</span>Half duty</button>` : ''}
     ${rec.length ? `<div class="mini-chips"><span class="muted small" style="align-self:center">Recent:</span>${rec.map(n => `<button data-act="pickNo" data-s="${s}" data-no="${n}">${n}</button>`).join('')}</div>` : ''}
   </div>`;
 }
@@ -480,7 +482,15 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (F && t.dataset.bind) {
     let v = t.value;
-    if (t.dataset.bind.endsWith('.no')) { const c = v.replace(/\D/g, '').slice(0, 6); if (c !== v) { t.value = c; } v = c; }
+    if (t.dataset.bind.endsWith('.no')) {
+      const c = v.replace(/[^A-Za-z0-9 [\]()/.-]/g, '').slice(0, 12); if (c !== v) { t.value = c; } v = c;
+      const had = !!F[t.dataset.bind[0]].no;
+      if (had !== !!v) { // the "Half duty" option appears/disappears with the duty number
+        setPath(t.dataset.bind, v); clearErr(t); drawEntry();
+        const n = $('#' + t.id); if (n) { n.focus(); n.setSelectionRange(v.length, v.length); }
+        return;
+      }
+    }
     setPath(t.dataset.bind, v);
     if (t.dataset.bind === 'note') $('#note-c').textContent = `${v.length}/200`;
     clearErr(t);
@@ -512,7 +522,7 @@ function validateEntry() {
     let any = false;
     ['m', 'e'].forEach(s => {
       const x = F[s];
-      if (x.no && !/^\d{1,6}$/.test(x.no)) err[s + '.no'] = 'Digits only, up to 6';
+      if (x.no && !/^[A-Za-z0-9 [\]()/.-]{1,12}$/.test(x.no)) err[s + '.no'] = 'Use letters, digits and [ ] ( ) / . - only (up to 12)';
       const hasPlace = x.place || (x.other && x.text.trim());
       if (hasPlace && !x.no) err[s + '.no'] = 'Enter the duty number';
       if (x.other) { const tx = x.text.trim(); if (!tx) err[s + '.text'] = 'Type the place name, or pick one from the list'; else if (tx.length < 2) err[s + '.text'] = 'Use at least 2 letters'; }
@@ -544,13 +554,13 @@ function saveEntry() {
   const created = [];
   const shift = s => {
     const x = F[s]; let place = x.place, text = '';
-    if (F.status !== 'duty') return { no: '', place: null, text: '' };
+    if (F.status !== 'duty') return { no: '', place: null, text: '', half: false };
     if (x.other) {
       const tx = x.text.trim().replace(/\s+/g, ' ');
       if (x.save) { let p = S.places.find(p => p.name.toLowerCase() === tx.toLowerCase()); if (!p) { p = { id: uid('p'), name: tx, catId: null, icon: null, hidden: false }; S.places.push(p); created.push(p.id); } place = p.id; }
       else { place = null; text = tx; }
     }
-    return { no: x.no, place, text };
+    return { no: x.no.trim(), place, text, half: !!(x.half && x.no) };
   };
   const amt = {}; if (F.status === 'duty') enabledFields().forEach(f => { const v = parseFloat(F.amt[f.id]); if (v > 0) amt[f.id] = Math.round(v * 100) / 100; });
   // keep values of switched-off amount fields when editing
@@ -703,53 +713,126 @@ function fitBlock(el) {
 /* PDF and Excel makers are bundled and load on first export (works offline). */
 async function loadLibs(kind) {
   if (kind === 'pdf' && !window.jspdf) {
-    const [{ jsPDF }, at] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
-    at.applyPlugin(jsPDF); window.jspdf = { jsPDF };
+    const { jsPDF } = await import('jspdf'); window.jspdf = { jsPDF };
   }
   if (kind === 'xlsx' && !window.ExcelJS) { const m = await import('exceljs/dist/exceljs.min.js'); window.ExcelJS = m.default || m; }
 }
 const rgb = hex => [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
-/* Draws the sheet at font size fs; everything stays inside the top-left 60% of the page width and height. */
-function drawPDF(D, fs) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
-  const M = A4.m, right = A4.w * A4.frac, bottom = A4.h * A4.frac, cw = right - M;
-  const margin = { left: M, right: A4.w - right, top: M, bottom: A4.h - bottom };
-  const th = fs * 2.3;
-  doc.setFillColor(...rgb(XL.title)); doc.rect(M, M, cw, th, 'F');
-  doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(fs * 1.45);
-  doc.text(D.title, M + cw / 2, M + th / 2, { align: 'center', baseline: 'middle' });
-  const base = { font: 'helvetica', fontSize: fs, cellPadding: fs * 0.28, halign: 'center', valign: 'middle', lineColor: rgb(XL.grid), lineWidth: 0.4, textColor: 20, overflow: 'linebreak' };
-  doc.autoTable({
-    startY: M + th + fs * 0.5, margin, tableWidth: cw, theme: 'grid', styles: base,
-    head: [D.info.map(i => i[0])], body: [D.info.map(i => i[1])],
-    headStyles: { fillColor: rgb(XL.label), textColor: rgb(XL.labelInk), fontStyle: 'bold' },
-    bodyStyles: { fillColor: rgb(XL.value), textColor: 0, fontStyle: 'bold' }
+/* ---- Printed sheet (PDF) ----
+   Same structure as the paper "spare" sheet: month · name · duty type, then
+   Date | Route.no | Half | place | Amount for each worked duty, blank rows, and a
+   Signature / TOTAL footer. Drawn on a canvas so Tamil place names are shaped
+   correctly, then placed as a 300-dpi image in the top-left 60% × 60% of an A4 page. */
+const SHEET = { purple: '#7030A0', red: '#FF0000', green: '#00B050', ink: '#000000', line: '#3A3A3A', thin: '#8A8A8A' };
+const SHEET_FONT = 'Arial, Roboto, Figtree, "Noto Sans Tamil", sans-serif';
+const SHEET_COLS = [0.12, 0.126, 0.16, 0.43, 0.164]; // Date, Route.no, Half, place, Amount (share of width)
+const SHEET_MIN_ROWS = 20, SHEET_MAX_ROWS = 48; // more than 48 duty rows continue on a second page
+function sheetData() {
+  const { r, rows } = exportRows(); const flds = enabledFields(); const p = S.profile;
+  const list = []; let total = 0;
+  rows.forEach(({ d, e }) => {
+    if (!e || e.status !== 'duty') return;
+    const dt = parse(d); const date = `${dt.getDate()}-${MON[dt.getMonth()]}`;
+    const amount = flds.reduce((s, f) => s + (+e.amt[f.id] || 0), 0); total += amount;
+    const shifts = ['m', 'e'].map(k => e[k]).filter(x => x.no || placeName(x));
+    if (!shifts.length) shifts.push({ no: '', place: null, text: '' });
+    shifts.forEach((x, i) => list.push({ date: i ? '' : date, no: x.no || '', half: !!x.half, place: placeName(x), amount: i || !amount ? '' : money0(amount) }));
   });
-  doc.autoTable({
-    startY: doc.lastAutoTable.finalY + fs * 0.5, margin, tableWidth: cw, theme: 'grid', styles: base, showFoot: 'lastPage', showHead: 'everyPage',
-    head: [['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Evening Duty', ...D.flds.map(f => `${f.name} (Rs.)`)]],
-    body: D.list.map(x => [x.n, x.date, x.day, x.status, dutyCell(x.mNo, x.mPl), dutyCell(x.eNo, x.ePl), ...x.amt.map(money0)]),
-    foot: [[{ content: 'TOTALS', colSpan: 3, rowSpan: 2 }, ...totalLabels(D)], totalValues(D)],
-    headStyles: { fillColor: rgb(XL.head), textColor: 255, fontStyle: 'bold' },
-    footStyles: { fillColor: rgb(XL.label), textColor: rgb(XL.labelInk), fontStyle: 'bold' },
-    columnStyles: { 0: { cellWidth: fs * 2.6 } },
-    didParseCell: d => {
-      if (d.section === 'foot' && d.row.index === 1) { d.cell.styles.fillColor = rgb(XL.value); d.cell.styles.textColor = 0; }
-      if (d.section !== 'body') return;
-      const k = D.list[d.row.index].kind;
-      if (k) d.cell.styles.fillColor = rgb(k === 'h' ? XL.holiday : XL.leave);
-      if (k && d.column.index === 3) { d.cell.styles.textColor = rgb(k === 'h' ? XL.holidayInk : XL.leaveInk); d.cell.styles.fontStyle = 'bold'; }
-    }
-  });
-  return doc;
+  const sameMonth = r.from.slice(0, 7) === r.to.slice(0, 7);
+  const head = sameMonth ? `${r.from.slice(0, 4)} ${MONL[+r.from.slice(5, 7) - 1]}` : `${fmtD(r.from)} – ${fmtD(r.to)}`;
+  const pages = []; for (let i = 0; i < Math.max(list.length, 1); i += SHEET_MAX_ROWS) pages.push(list.slice(i, i + SHEET_MAX_ROWS));
+  return { head, name: p.name || '', role: (p.designation || 'spare').trim(), list, pages, total: money0(total) || '0' };
 }
+function sheetLayout(rowCount, W) {
+  const R = Math.max(SHEET_MIN_ROWS, rowCount);
+  const maxH = A4.h * A4.frac - A4.m;
+  const u = Math.min(W * 0.034, maxH / (R + 9.4)); // row height; header/footer sized in rows
+  return { R, u, H: u * (R + 9.4) };
+}
+/* Draws one page of the sheet. W = width in points, s = pixels per point. */
+function drawSheet(ctx, D, rows, last, W, s) {
+  const { R, u, H } = sheetLayout(rows.length, W);
+  const xs = [0]; SHEET_COLS.forEach(f => xs.push(xs[xs.length - 1] + f * W));
+  ctx.save(); ctx.scale(s, s);
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
+  const line = (x1, y1, x2, y2, w, c) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineWidth = w; ctx.strokeStyle = c; ctx.stroke(); };
+  const thick = (x1, y1, x2, y2) => line(x1, y1, x2, y2, 0.9, SHEET.line);
+  const thin = (x1, y1, x2, y2) => line(x1, y1, x2, y2, 0.4, SHEET.thin);
+  const text = (str, x0, x1, y, h, size, color = SHEET.ink) => {
+    str = String(str ?? ''); if (!str) return;
+    let fs = size; const room = x1 - x0 - u * 0.3;
+    ctx.font = `bold ${fs}px ${SHEET_FONT}`;
+    while (ctx.measureText(str).width > room && fs > size * 0.45) { fs -= size * 0.04; ctx.font = `bold ${fs}px ${SHEET_FONT}`; }
+    ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(str, (x0 + x1) / 2, y + h / 2 + fs * 0.04);
+  };
+  let y = 0;
+  // Row 1: month · name · duty type
+  const h1 = 2.6 * u;
+  text(D.head, xs[0], xs[2], y, h1, 0.72 * u, SHEET.purple);
+  text(D.name, xs[2], xs[4], y, h1, 1.0 * u, SHEET.red);
+  text(D.role, xs[4], xs[5], y, h1, 0.58 * u, SHEET.red);
+  thick(xs[2], y, xs[2], y + h1); thick(xs[4], y, xs[4], y + h1); thick(0, y + h1, W, y + h1);
+  y += h1;
+  // Row 2: column titles
+  const h2 = 0.9 * u;
+  text('Date', xs[0], xs[1], y, h2, 0.56 * u); text('Route.no', xs[1], xs[3], y, h2, 0.56 * u);
+  text('place', xs[3], xs[4], y, h2, 0.56 * u); text('Amount', xs[4], xs[5], y, h2, 0.56 * u);
+  [1, 3, 4].forEach(i => thick(xs[i], y, xs[i], y + h2)); thick(0, y + h2, W, y + h2);
+  y += h2;
+  // Duty rows, then blank rows
+  for (let i = 0; i < R; i++) {
+    const row = rows[i];
+    if (row) {
+      text(row.date, xs[0], xs[1], y, u, 0.66 * u); text(row.no, xs[1], xs[2], y, u, 0.66 * u);
+      text(row.half ? 'Half' : '', xs[2], xs[3], y, u, 0.66 * u); text(row.place, xs[3], xs[4], y, u, 0.66 * u);
+      text(row.amount, xs[4], xs[5], y, u, 0.66 * u);
+    }
+    if (i < R - 1) thin(0, y + u, W, y + u);
+    y += u;
+  }
+  [1, 3, 4].forEach(i => thick(xs[i], y - R * u, xs[i], y)); thin(xs[2], y - R * u, xs[2], y);
+  thick(0, y, W, y);
+  // Footer: Signature | TOTAL | amount
+  const hl = 0.9 * u, hb = 5 * u;
+  text('Signature', xs[0], xs[3], y, hl, 0.56 * u, SHEET.purple);
+  thin(xs[0], y + hl, xs[3], y + hl);
+  text('TOTAL', xs[3], xs[4], y, hl + hb, 1.6 * u, SHEET.green);
+  text(last ? D.total : 'contd.', xs[4], xs[5], y, hl + hb, last ? 1.6 * u : 0.8 * u, SHEET.green);
+  thick(xs[3], y, xs[3], y + hl + hb); thick(xs[4], y, xs[4], y + hl + hb);
+  // Outer frame
+  ctx.lineWidth = 1.1; ctx.strokeStyle = SHEET.line; ctx.strokeRect(0.55, 0.55, W - 1.1, H - 1.1);
+  ctx.restore();
+  return H;
+}
+async function sheetFonts() {
+  try { await Promise.all([document.fonts.load(`bold 16px "Noto Sans Tamil"`, 'அ'), document.fonts.load('bold 16px Figtree')]); } catch (e) { /* system fonts still work */ }
+}
+const SHEET_W = A4.w * A4.frac - A4.m;
 async function buildPDF() {
-  await loadLibs('pdf');
-  const D = exportData(); let doc;
-  // Largest font (9pt down to 6pt) that keeps the whole sheet on page 1 inside the 60% box; longer ranges continue on more pages.
-  for (let fs = 9; fs >= 6; fs -= 0.25) { doc = drawPDF(D, fs); if (doc.getNumberOfPages() === 1) break; }
+  await Promise.all([loadLibs('pdf'), sheetFonts()]);
+  const D = sheetData(); const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+  const s = 300 / 72;
+  D.pages.forEach((rows, i) => {
+    if (i) doc.addPage();
+    const { H } = sheetLayout(rows.length, SHEET_W);
+    const c = document.createElement('canvas'); c.width = Math.ceil(SHEET_W * s); c.height = Math.ceil(H * s);
+    drawSheet(c.getContext('2d'), D, rows, i === D.pages.length - 1, SHEET_W, s);
+    doc.addImage(c.toDataURL('image/png'), 'PNG', A4.m, A4.m, SHEET_W, H, undefined, 'FAST');
+  });
+  doc.setProperties({ title: `Duty sheet ${D.head}`, author: D.name, creator: 'Daily Duty Tracker' });
   return doc.output('arraybuffer');
+}
+/* Preview inside the export sheet: the first page on an A4 outline (dashed line = cut). */
+async function drawSheetPreview(el) {
+  const cv = el.querySelector('#sheet-cv'); if (!cv) return;
+  await sheetFonts();
+  const D = sheetData(); const rows = D.pages[0]; const { H } = sheetLayout(rows.length, SHEET_W);
+  const s = Math.min(3, (window.devicePixelRatio || 1) * 2);
+  cv.width = Math.ceil(SHEET_W * s); cv.height = Math.ceil(H * s);
+  cv.style.width = SHEET_W + 'px'; cv.style.height = H + 'px';
+  drawSheet(cv.getContext('2d'), D, rows, D.pages.length === 1, SHEET_W, s);
 }
 async function buildXLSX() {
   await loadLibs('xlsx');
@@ -810,7 +893,7 @@ async function saveFile(name, data) {
     setTimeout(() => URL.revokeObjectURL(url), 5000); return 'saved';
   } catch (e) { return 'failed'; }
 }
-const FMT = { pdf: { label: 'PDF', icon: 'page', note: 'A4 portrait, same look as your Excel print' }, xlsx: { label: 'Excel', icon: 'chart', note: 'Excel workbook with colours and live totals (SUM / COUNTIF)' }, csv: { label: 'CSV', icon: 'clipboard', note: 'Plain data, one row per day' } };
+const FMT = { pdf: { label: 'PDF', icon: 'page', note: 'Duty sheet: worked days with route, place and amount' }, xlsx: { label: 'Excel', icon: 'chart', note: 'Excel workbook with colours and live totals (SUM / COUNTIF)' }, csv: { label: 'CSV', icon: 'clipboard', note: 'Plain data, one row per day' } };
 async function doExport(fmt, again) {
   if (X.busy) return;
   const { rows } = exportRows(); if (!rows.length) return toast('Nothing to export for this period', 'warn');
@@ -822,9 +905,10 @@ async function doExport(fmt, again) {
   if (!again) {
     const preview = fmt === 'csv'
       ? `<div class="xl" style="overflow:auto"><pre style="margin:0;padding:10px;font:11px/1.5 var(--f-mono);white-space:pre">${esc(data.replace('﻿', '').split('\r\n').slice(0, 14).join('\n'))}${rows.length > 13 ? '\n…' : ''}</pre></div>`
-      : `<div class="paper-wrap">${paperHtml()}</div><div class="cut-note">Dashed line shows where to cut the printed A4 sheet</div>`;
-    openLayer(`<div class="sheet-card" style="height:92%">${sheetHead('Export')}<div class="sheet-body"><div class="filecard">${ic(FMT[fmt].icon, 40)}<div class="grow"><b>${esc(name)}</b><span class="muted small">${plural(rows.length, 'row')} · ${FMT[fmt].note}</span></div></div>${preview}</div><div class="sheet-foot"><button class="btn green block" data-act="xAgain" data-f="${fmt}" id="x-again">Download again</button></div></div>`,
-      { onMount: el => fitPaper(el) });
+      : fmt === 'pdf' ? `<div class="paper-wrap"><div class="a4"><div class="cut" aria-hidden="true"></div><canvas id="sheet-cv" class="sheet-cv" aria-label="Duty sheet preview"></canvas></div></div><div class="cut-note">Dashed line shows where to cut the printed A4 sheet</div>`
+      : `<div class="paper-wrap">${paperHtml()}</div>`;
+    openLayer(`<div class="sheet-card" style="height:92%">${sheetHead('Export')}<div class="sheet-body"><div class="filecard">${ic(FMT[fmt].icon, 40)}<div class="grow"><b>${esc(name)}</b><span class="muted small">${fmt === 'pdf' ? plural(sheetData().list.filter(r => r.date).length, 'worked day') : plural(rows.length, 'row')} · ${FMT[fmt].note}</span></div></div>${preview}</div><div class="sheet-foot"><button class="btn green block" data-act="xAgain" data-f="${fmt}" id="x-again">Download again</button></div></div>`,
+      { onMount: el => { fitPaper(el); drawSheetPreview(el); } });
   }
   const res = await saveFile(name, data);
   X.busy = false; renderExport(); updateAgainBtn();
@@ -834,7 +918,7 @@ async function doExport(fmt, again) {
   else toast(`Couldn't save ${name}. Try again.`, 'err');
 }
 function updateAgainBtn() { const b = $('#x-again'); if (b) { b.disabled = !!X.busy; b.textContent = X.busy ? 'Preparing…' : 'Download again'; } }
-function fitPaper(el) { const p = el.querySelector('.a4'); if (!p) return; fitBlock(el); const w = el.querySelector('.paper-wrap').clientWidth - 24; const s = Math.min(1, w / 595); p.style.transform = `scale(${s})`; p.style.marginBottom = `${-(1 - s) * 842}px`; p.style.marginRight = `${-(1 - s) * 595}px`; }
+function fitPaper(el) { const p = el.querySelector('.a4'); if (!p) return; if (el.querySelector('#blk')) fitBlock(el); const w = el.querySelector('.paper-wrap').clientWidth - 24; const s = Math.min(1, w / 595); p.style.transform = `scale(${s})`; p.style.marginBottom = `${-(1 - s) * 842}px`; p.style.marginRight = `${-(1 - s) * 595}px`; }
 
 /* ---------------- Settings ---------------- */
 function secHtml(id, icon, title, sub, body) {
@@ -884,6 +968,7 @@ function openProfile() {
     <div class="field"><label>Email</label><div class="input" style="opacity:.75"><span class="val">${esc(S.auth.email)}</span>${ic('lock', 16)}</div><span class="hint">To change email, log out and sign in with the new one.</span></div>
     <div class="grid2" style="grid-template-columns:1fr 1fr"><div class="field" data-k="staffId"><label for="pf-id">Staff / badge ID</label><div class="input mono"><input id="pf-id" maxlength="12" value="${esc(p.staffId)}" autocomplete="off"></div><div class="msg"></div></div>
     <div class="field" data-k="phone"><label for="pf-ph">Mobile</label><div class="input"><span class="pre">+91</span><input id="pf-ph" inputmode="numeric" maxlength="10" value="${esc(p.phone)}" autocomplete="tel-national"></div><div class="msg"></div></div></div>
+    <div class="field"><label for="pf-role">Duty type</label><div class="input"><input id="pf-role" maxlength="20" value="${esc(p.designation || 'spare')}" placeholder="spare"></div><span class="hint">Printed next to your name on the PDF duty sheet.</span></div>
     <div class="field"><label for="pf-dep">Depot / branch</label><div class="input"><input id="pf-dep" maxlength="40" value="${esc(p.depot)}" placeholder="e.g. Perundurai Depot"></div><span class="hint">Name, ID and depot are printed on exported sheets.</span></div>
     </div><div class="sheet-foot"><div class="summary" id="pf-sum" hidden></div><button class="btn primary block" id="pf-save">Update profile</button></div></div>`);
   const drawAv = () => { el.querySelector('#pf-av').innerHTML = draft.photo ? `<img class="photo" src="${draft.photo}" alt="">` : ic(draft.avatar, 46); $$('#pf-icons button', el).forEach(b => b.classList.toggle('on', !draft.photo && b.dataset.k === draft.avatar)); el.querySelector('#pf-rm').hidden = !draft.photo; };
@@ -907,7 +992,7 @@ function openProfile() {
     const n = Object.keys(errs).length; const sum = el.querySelector('#pf-sum');
     if (n) { sum.hidden = false; sum.textContent = n === 1 ? 'Please fix the highlighted field' : `Please fix ${n} highlighted fields`; el.querySelector('.field.err').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     const prev = clone(S.profile);
-    S.profile = { ...draft, name, staffId: id, phone: ph, depot: el.querySelector('#pf-dep').value.trim() };
+    S.profile = { ...draft, name, staffId: id, phone: ph, depot: el.querySelector('#pf-dep').value.trim(), designation: el.querySelector('#pf-role').value.trim() || 'spare' };
     markDirty(); closeTop(); renderAll();
     toast('Profile updated', 'ok', () => { S.profile = prev; markDirty(); renderAll(); toast('Change undone', 'info'); });
   };
@@ -1149,7 +1234,7 @@ const ACT = {
   addFor: b => openEntry(b.dataset.date),
   editEntry: b => openEntry(b.dataset.date),
   openMissing: () => { R.month = monthKey(todayIso()); R.filter = 'missing'; R.q = ''; renderRecords(); showTab('records'); },
-  repeatLast: () => { const ld = lastDuty(); if (!ld) return; const sh = x => ({ ...blankShift(), no: x.no, place: x.place, text: x.text, other: !x.place && !!x.text, save: false }); const amt = {}; for (const k in ld.amt) amt[k] = String(ld.amt[k]); openEntry(todayIso(), { status: 'duty', m: sh(ld.m), e: sh(ld.e), amt, note: '' }); toast(`Filled from ${fmtDW(ld.date)} — check and save`, 'info'); },
+  repeatLast: () => { const ld = lastDuty(); if (!ld) return; const sh = x => ({ ...blankShift(), no: x.no, place: x.place, text: x.text, half: !!x.half, other: !x.place && !!x.text, save: false }); const amt = {}; for (const k in ld.amt) amt[k] = String(ld.amt[k]); openEntry(todayIso(), { status: 'duty', m: sh(ld.m), e: sh(ld.e), amt, note: '' }); toast(`Filled from ${fmtDW(ld.date)} — check and save`, 'info'); },
   quick: b => quickMark(b.dataset.status),
   mPrev: () => { R.month = shiftMonth(R.month, -1); renderRecords(); },
   mNext: () => { R.month = shiftMonth(R.month, 1); renderRecords(); },
@@ -1192,6 +1277,7 @@ const ACT = {
   pickPlace: b => { const s = b.dataset.s; const x = F[s]; openPicker({ title: b.closest('.shift').querySelector('.shift-h .grow').textContent + ' · place', value: x.other ? '__other' : x.place, groups: placeGroups(), placeholder: 'Search places', extra: [{ value: '__other', label: 'Other (type manually)', sub: 'For a place not in your list', icon: 'pencil' }, ...(x.place || x.other ? [{ value: '__none', label: 'No place', icon: 'label' }] : [])], onPick: (v, q) => { if (v === '__other') { x.other = true; x.place = null; x.text = x.text || q || ''; } else if (v === '__none') { x.other = false; x.place = null; x.text = ''; } else { x.other = false; x.place = v; x.text = ''; } delete F.errs[s + '.text']; drawEntry(); if (v === '__other') setTimeout(() => $('#tx-' + s)?.focus(), 350); } }); },
   toggleSave: b => { const x = F[b.dataset.s]; x.save = !x.save; b.querySelector('.checkbox').classList.toggle('on', x.save); },
   pickNo: b => { F[b.dataset.s].no = b.dataset.no; delete F.errs[b.dataset.s + '.no']; delete F.errs.block; drawEntry(); },
+  toggleHalf: b => { const x = F[b.dataset.s]; x.half = !x.half; b.querySelector('.checkbox').classList.toggle('on', x.half); b.setAttribute('aria-pressed', x.half); },
   clearShift: b => { F[b.dataset.s] = blankShift(); drawEntry(); },
   // Export
   xPeriod: b => { X.period = b.dataset.v; renderExport(); if (X.period === 'pick') ACT.xMonth(); },
@@ -1279,7 +1365,7 @@ boot();
 
 /* Test hooks (only in the e2e build). */
 if (import.meta.env.VITE_E2E === '1') {
-  Object.assign(window, { todayIso, addDays, parse, fmtDW, fmtD, daysIn, monthDates, monthKey, shiftMonth, inr, openEntry, drawEntry, closeTop, buildCSV, exportRange, exportRows, renderExport, renderRecords, quickMark, markDirty, save, placeGroups, defaultStatus, missingDays, enabledFields, openCalendar, applyLook, enterApp, showTab, toast, runSync, loadAccount, checkUpdate, R, X, layers, app, cloud });
+  Object.assign(window, { todayIso, addDays, parse, fmtDW, fmtD, daysIn, monthDates, monthKey, shiftMonth, inr, openEntry, drawEntry, closeTop, buildCSV, exportRange, exportRows, renderExport, renderRecords, quickMark, markDirty, save, placeGroups, defaultStatus, missingDays, enabledFields, openCalendar, applyLook, enterApp, showTab, toast, runSync, loadAccount, checkUpdate, sheetData, R, X, layers, app, cloud });
   Object.defineProperty(window, 'S', { get: () => S, set: v => { S = v; } });
   Object.defineProperty(window, 'F', { get: () => F, set: v => { F = v; } });
   Object.defineProperty(window, 'META', { get: () => META });
