@@ -156,6 +156,13 @@ jobs:
             done
             echo "::error::Upload of $2 failed (HTTP $code): $(head -c 300 resp.txt)"; return 1
           }
+          # Create the public "releases" bucket on first use (no SQL step needed).
+          for auth in no yes; do
+            extra=(); [ "$auth" = yes ] && extra=(-H "Authorization: Bearer $SB_SECRET")
+            code=$(curl -s -o resp.txt -w "%{http_code}" -X POST "$SB_URL/storage/v1/bucket" -H "apikey: $SB_SECRET" "${extra[@]}" \
+              -H "Content-Type: application/json" -d '{"id":"releases","name":"releases","public":true,"file_size_limit":52428800}')
+            if [ "$code" = "200" ] || grep -qi "already exists\|Duplicate" resp.txt; then echo "releases bucket ready"; break; fi
+          done
           export BASE="$SB_URL/storage/v1/object/public/releases"
           up duty-tracker.apk "duty-tracker-$VER.apk" application/vnd.android.package-archive
           up duty-tracker.apk "duty-tracker-latest.apk" application/vnd.android.package-archive

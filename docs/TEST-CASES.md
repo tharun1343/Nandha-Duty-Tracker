@@ -182,10 +182,11 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 | ID | Area | Scenario | Expected result | Status |
 |---|---|---|---|---|
 | CI-01 | Gate | Any test fails | No APK is published | Pass (run #1: tests ran before build) |
-| CI-02 | Build | Push to default branch | Signed APK `1.0.N`, GitHub Release `v1.0.N` | Run #1 built and published (preview channel) |
+| CI-02 | Build | Push to default branch | Signed APK `1.0.N`, GitHub Release `v1.0.N` | Run #2 published `v1.0.2` (debug-signed until the signing secrets are added) |
 | CI-03 | Update channel | Default branch + signing + `SUPABASE_SECRET_KEY` secrets | `duty-tracker-1.0.N.apk`, `duty-tracker-latest.apk`, `version.json` uploaded to the `releases` bucket | Waiting for secrets |
 | CI-04 | Safety | Signing secrets missing | Debug APK on GitHub only; never pushed to phones through the update channel | Built in |
-| CI-05 | Supabase check | Each build | Warns when the `records` table is missing (schema.sql not run) | Built in |
+| CI-05 | Supabase check | Each build | Warns when the `records` table is missing (schema.sql not run) | Pass (run #2: table found, locked to signed-in users: HTTP 401 / 42501 for the public key) |
+| CI-06 | Update channel | First publish | Creates the public `releases` bucket if it is missing | Built in (logic checked with a simulated response) |
 
 ## Needs a real phone (APK) — not yet run
 | ID | Area | Scenario | Expected result |

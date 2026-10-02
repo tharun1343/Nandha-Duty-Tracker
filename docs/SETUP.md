@@ -8,7 +8,7 @@ You only do this once. Steps marked **(you)** happen in a dashboard; nothing her
    - Name: `duty-tracker`
    - Region: **South Asia (Mumbai)**
    - Database password: choose one and keep it yourself. The app never needs it.
-2. When the project is ready: **SQL Editor → New query**. Paste the whole of [`supabase/schema.sql`](../supabase/schema.sql), then press **Run**. You should see *Success. No rows returned*. This creates the `records` table and the public `releases` bucket for app updates. If you ran an older copy before, run this one again; that is safe.
+2. When the project is ready: **SQL Editor → New query**. Paste the whole of [`supabase/schema.sql`](../supabase/schema.sql), then press **Run**. You should see *Success. No rows returned*. This creates the `records` table. (The public `releases` bucket for app updates is created automatically by the build once `SUPABASE_SECRET_KEY` is added.)
 3. **Authentication → Sign In / Providers → Email**:
    - **Enable Email provider**: on
    - **Email OTP Length**: `6`
