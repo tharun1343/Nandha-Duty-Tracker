@@ -26,15 +26,15 @@
   --r-s:10px; --r-m:16px; --r-l:22px;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0C131E; --surface:#152030; --surface-2:#1B2839; --glass:rgba(21,32,48,.8);
-  --line:#26364B; --fg:#E7EDF5; --fg-2:#A8B5C7; --fg-3:#7F8DA2; --accent:var(--acc-d); --on-accent:#0C131E;
+  --bg:#000000; --surface:#121212; --surface-2:#1C1C1E; --glass:rgba(12,12,12,.84);
+  --line:#2C2C2E; --fg:#F2F2F2; --fg-2:#B4B4B8; --fg-3:#88888E; --accent:var(--acc-d); --on-accent:#000000;
   --duty-bg:rgba(84,176,124,.16); --duty-fg:#82CFA1; --hol-bg:rgba(222,104,92,.17); --hol-fg:#F2A096; --leave-bg:rgba(226,164,62,.17); --leave-fg:#F1C374;
   --miss-bg:rgba(224,138,30,.10); --green:#3A9561; --danger:#E26A62; --nav-sel:#FFFFFF;
   --sh-1:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.28); --sh-2:0 2px 8px rgba(0,0,0,.35),0 20px 48px rgba(0,0,0,.45);
   --scrim:rgba(0,0,0,.55); color-scheme:dark }}
 :root[data-theme="dark"]{
-  --bg:#0C131E; --surface:#152030; --surface-2:#1B2839; --glass:rgba(21,32,48,.8);
-  --line:#26364B; --fg:#E7EDF5; --fg-2:#A8B5C7; --fg-3:#7F8DA2; --accent:var(--acc-d); --on-accent:#0C131E;
+  --bg:#000000; --surface:#121212; --surface-2:#1C1C1E; --glass:rgba(12,12,12,.84);
+  --line:#2C2C2E; --fg:#F2F2F2; --fg-2:#B4B4B8; --fg-3:#88888E; --accent:var(--acc-d); --on-accent:#000000;
   --duty-bg:rgba(84,176,124,.16); --duty-fg:#82CFA1; --hol-bg:rgba(222,104,92,.17); --hol-fg:#F2A096; --leave-bg:rgba(226,164,62,.17); --leave-fg:#F1C374;
   --miss-bg:rgba(224,138,30,.10); --green:#3A9561; --danger:#E26A62; --nav-sel:#FFFFFF;
   --sh-1:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.28); --sh-2:0 2px 8px rgba(0,0,0,.35),0 20px 48px rgba(0,0,0,.45);
@@ -48,6 +48,14 @@
   --sh-1:0 1px 2px rgba(18,34,58,.06),0 6px 18px rgba(18,34,58,.07); --sh-2:0 2px 6px rgba(18,34,58,.08),0 18px 40px rgba(18,34,58,.14);
   --scrim:rgba(10,20,34,.42); color-scheme:light }
 #app[data-mode="dark"]{
+  --bg:#000000; --surface:#121212; --surface-2:#1C1C1E; --glass:rgba(12,12,12,.84);
+  --line:#2C2C2E; --fg:#F2F2F2; --fg-2:#B4B4B8; --fg-3:#88888E; --accent:var(--acc-d); --on-accent:#000000;
+  --duty-bg:rgba(84,176,124,.16); --duty-fg:#82CFA1; --hol-bg:rgba(222,104,92,.17); --hol-fg:#F2A096; --leave-bg:rgba(226,164,62,.17); --leave-fg:#F1C374;
+  --miss-bg:rgba(224,138,30,.10); --green:#3A9561; --danger:#E26A62; --nav-sel:#FFFFFF;
+  --sh-1:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.28); --sh-2:0 2px 8px rgba(0,0,0,.35),0 20px 48px rgba(0,0,0,.45);
+  --scrim:rgba(0,0,0,.55); color-scheme:dark }
+/* "Dark blue" option: the original navy dark theme */
+#app[data-mode="darkblue"]{
   --bg:#0C131E; --surface:#152030; --surface-2:#1B2839; --glass:rgba(21,32,48,.8);
   --line:#26364B; --fg:#E7EDF5; --fg-2:#A8B5C7; --fg-3:#7F8DA2; --accent:var(--acc-d); --on-accent:#0C131E;
   --duty-bg:rgba(84,176,124,.16); --duty-fg:#82CFA1; --hol-bg:rgba(222,104,92,.17); --hol-fg:#F2A096; --leave-bg:rgba(226,164,62,.17); --leave-fg:#F1C374;
@@ -384,18 +392,21 @@ img.i3d{display:block;flex:none;object-fit:contain;-webkit-user-drag:none;user-s
 .cal-legend i{width:7px;height:7px;border-radius:50%}
 
 /* File preview */
-.paper-wrap{background:var(--surface-2);border-radius:14px;padding:12px;overflow:auto}
-.paper{background:#fff;color:#111;width:595px;max-width:none;margin:0 auto;padding:28px 26px;box-shadow:0 4px 18px rgba(0,0,0,.18);font:11px/1.35 Calibri,"Segoe UI",Arial,sans-serif;transform-origin:top left}
-.paper .ttl{background:#1F4E79;color:#fff;font-weight:700;font-size:14px;text-align:center;padding:8px}
-.paper .meta{display:flex;justify-content:space-between;gap:8px;padding:6px 2px;font-size:10px;color:#333;flex-wrap:wrap}
-.paper table{border-collapse:collapse;width:100%}
-.paper th{background:#2E75B6;color:#fff;font-weight:700;padding:4px;border:1px solid #9DB7D3;font-size:10px}
-.paper td{border:1px solid #C9D6E3;padding:3px 4px;font-size:10px;text-align:center}
-.paper td.l{text-align:left}
-.paper tr.h td{background:#FFE4E1}
-.paper tr.lv td{background:#FFF1D9}
-.paper tr.tot td{background:#D6E4F0;color:#1F4E79;font-weight:700}
-.paper .legend{font-size:9px;color:#444;margin-top:8px;background:#DAEEF3;padding:5px}
+.paper-wrap{background:var(--surface-2);border-radius:14px;padding:12px;overflow:hidden}
+.a4{position:relative;background:#fff;color:#111;width:595px;height:842px;box-shadow:0 4px 18px rgba(0,0,0,.18);transform-origin:top left;font-family:Arial,Helvetica,sans-serif}
+.a4 .cut{position:absolute;left:0;top:0;width:60%;height:60%;border-right:1px dashed #9AA6B4;border-bottom:1px dashed #9AA6B4;pointer-events:none}
+.a4 .blk{position:absolute;left:14px;top:14px;width:calc(60% - 14px);font-size:9px;line-height:1.2}
+.a4 .ttl{background:#1F4E79;color:#fff;font-weight:700;font-size:1.45em;text-align:center;padding:.45em}
+.a4 table{border-collapse:collapse;width:100%;margin-top:.5em;table-layout:auto}
+.a4 th,.a4 td{border:.5px solid #C9D6E3;padding:.28em;text-align:center;vertical-align:middle;font-size:1em}
+.a4 .xinfo th{background:#D6E4F0;color:#1F4E79;font-weight:700}
+.a4 .xinfo td{background:#DAEEF3;color:#000;font-weight:700}
+.a4 .main th{background:#2E75B6;color:#fff;font-weight:700}
+.a4 tr.h td{background:#FFE4E1} .a4 tr.h td.st{color:#C0392B;font-weight:700}
+.a4 tr.lv td{background:#FFF1D9} .a4 tr.lv td.st{color:#92600F;font-weight:700}
+.a4 tr.tl td{background:#D6E4F0;color:#1F4E79;font-weight:700}
+.a4 tr.tv td{background:#DAEEF3;color:#000;font-weight:700}
+.cut-note{font-size:.78rem;color:var(--fg-3);text-align:center}
 .xl{background:#fff;color:#111;font:12px Calibri,Arial,sans-serif;border:1px solid #bbb;min-width:560px}
 .xl table{border-collapse:collapse}
 .xl td,.xl th{border:1px solid #d4d4d4;padding:3px 6px;white-space:nowrap}
@@ -1117,7 +1128,9 @@ function buildCSV() {
   rows.forEach(({ d, e }, i) => lines.push([i + 1, fmtD(d), WDL[parse(d).getDay()], e ? STATUS[e.status].label : '', e?.m.no || '', e ? placeName(e.m) : '', e?.e.no || '', e ? placeName(e.e) : '', ...flds.map(f => e?.amt[f.id] ?? ''), e?.note || ''].map(csvCell).join(',')));
   return '﻿' + lines.join('\r\n');
 }
-/* Shared export model: one row per day, used by the on-screen preview, PDF, Excel and CSV. */
+/* Shared export model: one row per day, used by the on-screen preview, PDF, Excel and CSV.
+   Colours follow the original Excel sheet. */
+const XL = { title: '1F4E79', head: '2E75B6', label: 'D6E4F0', labelInk: '1F4E79', value: 'DAEEF3', holiday: 'FFE4E1', holidayInk: 'C0392B', leave: 'FFF1D9', leaveInk: '92600F', grid: 'C9D6E3' };
 function exportData() {
   const { r, rows } = exportRows(); const flds = enabledFields(); const p = S.profile;
   const list = rows.map(({ d, e }, i) => ({
@@ -1127,23 +1140,32 @@ function exportData() {
     mNo: e?.m.no || '', mPl: e ? placeName(e.m) : '', eNo: e?.e.no || '', ePl: e ? placeName(e.e) : '',
     amt: flds.map(f => e?.amt[f.id] ?? ''), note: e?.note || ''
   }));
-  return {
-    r, flds, list, tot: totalsFor(rows.map(x => x.d)),
-    title: `Daily Duty Tracker — ${r.title}`,
-    metaL: [`Name: ${p.name || '—'}`, p.staffId && `Staff ID: ${p.staffId}`, p.depot && `Depot: ${p.depot}`].filter(Boolean).join('    '),
-    metaR: `Period: ${fmtD(r.from)} to ${fmtD(r.to)}`,
-    legend: `Legend: Pink rows = Holiday (${WDL[S.settings.weeklyOff] || 'weekly off'}) · Amber rows = Leave · Morning/Evening Duty: duty number and place · Generated ${fmtDW(todayIso())}`
-  };
+  const info = [['Name', p.name || '—'], ['Staff ID', p.staffId], ['Depot', p.depot], ['Period', `${fmtD(r.from)} to ${fmtD(r.to)}`]].filter(x => x[1]);
+  return { r, flds, list, info, tot: totalsFor(rows.map(x => x.d)), title: `Daily Duty Tracker — ${r.title}` };
 }
 const money0 = v => v === '' ? '' : inr(v).replace('₹', '');
+const dutyCell = (no, pl) => [no, pl].filter(Boolean).join(' · ');
+const totalLabels = D => ['On Duty Days:', 'Morning Count:', 'Evening Count:', ...D.flds.map(f => `Total ${f.name}:`)];
+const totalValues = D => [D.tot.duty, D.tot.m, D.tot.e, ...D.flds.map(f => money0(D.tot.amt[f.id]) || '0')];
+
+/* On-screen preview: an A4 page with the printed block in the top-left 60% × 60% (dashed line = where to cut). */
+const A4 = { w: 595.28, h: 841.89, m: 14, frac: 0.6 };
 function paperHtml() {
   const D = exportData();
-  const duty = (no, pl) => `${esc(no)}${pl ? `<br><span style="color:#555">${esc(pl)}</span>` : ''}`;
-  const body = D.list.map(x => `<tr class="${x.kind}"><td>${x.n}</td><td>${x.date}</td><td>${x.day}</td><td>${x.status}</td><td>${duty(x.mNo, x.mPl)}</td><td>${duty(x.eNo, x.ePl)}</td>${x.amt.map(a => `<td>${money0(a)}</td>`).join('')}</tr>`).join('');
-  return `<div class="ttl">${esc(D.title)}</div><div class="meta"><span>${esc(D.metaL)}</span><span>${esc(D.metaR)}</span></div>
-    <table><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Status</th><th>Morning Duty</th><th>Evening Duty</th>${D.flds.map(f => `<th>${esc(f.name)} (₹)</th>`).join('')}</tr></thead><tbody>${body}
-    <tr class="tot"><td colspan="3">TOTALS</td><td>On Duty: ${D.tot.duty}</td><td>Morning: ${D.tot.m}</td><td>Evening: ${D.tot.e}</td>${D.flds.map(f => `<td>${money0(D.tot.amt[f.id])}</td>`).join('')}</tr></tbody></table>
-    <div class="legend">${esc(D.legend)}</div>`;
+  const body = D.list.map(x => `<tr class="${x.kind}"><td>${x.n}</td><td>${x.date}</td><td>${x.day}</td><td class="st">${x.status}</td><td>${esc(dutyCell(x.mNo, x.mPl))}</td><td>${esc(dutyCell(x.eNo, x.ePl))}</td>${x.amt.map(a => `<td>${money0(a)}</td>`).join('')}</tr>`).join('');
+  return `<div class="a4"><div class="cut" aria-hidden="true"></div><div class="blk" id="blk">
+    <div class="ttl">${esc(D.title)}</div>
+    <table class="xinfo"><tr>${D.info.map(i => `<th>${esc(i[0])}</th>`).join('')}</tr><tr>${D.info.map(i => `<td>${esc(i[1])}</td>`).join('')}</tr></table>
+    <table class="main"><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Status</th><th>Morning Duty</th><th>Evening Duty</th>${D.flds.map(f => `<th>${esc(f.name)} (₹)</th>`).join('')}</tr></thead><tbody>${body}
+    <tr class="tl"><td colspan="3" rowspan="2">TOTALS</td>${totalLabels(D).map(l => `<td>${esc(l)}</td>`).join('')}</tr>
+    <tr class="tv">${totalValues(D).map(v => `<td>${esc(v)}</td>`).join('')}</tr></tbody></table>
+  </div></div>`;
+}
+/* Shrink the preview text until the block fits its 60% × 60% box (mirrors the PDF's auto-fit). */
+function fitBlock(el) {
+  const b = el.querySelector('#blk'); if (!b) return;
+  const maxH = A4.h * A4.frac - A4.m;
+  for (let fs = 9; fs >= 5; fs -= 0.25) { b.style.fontSize = fs + 'px'; if (b.scrollHeight <= maxH) break; }
 }
 /* PDF and Excel makers load on first use (bundled locally in the real app). */
 const LIBS = {
@@ -1159,59 +1181,96 @@ function loadScript(src) {
   }));
 }
 async function loadLibs(kind) { for (const u of LIBS[kind]) await loadScript(u); }
+const rgb = hex => [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
+/* Draws the sheet at font size fs; everything stays inside the top-left 60% of the page width and height. */
+function drawPDF(D, fs) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+  const M = A4.m, right = A4.w * A4.frac, bottom = A4.h * A4.frac, cw = right - M;
+  const margin = { left: M, right: A4.w - right, top: M, bottom: A4.h - bottom };
+  const th = fs * 2.3;
+  doc.setFillColor(...rgb(XL.title)); doc.rect(M, M, cw, th, 'F');
+  doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(fs * 1.45);
+  doc.text(D.title, M + cw / 2, M + th / 2, { align: 'center', baseline: 'middle' });
+  const base = { font: 'helvetica', fontSize: fs, cellPadding: fs * 0.28, halign: 'center', valign: 'middle', lineColor: rgb(XL.grid), lineWidth: 0.4, textColor: 20, overflow: 'linebreak' };
+  doc.autoTable({
+    startY: M + th + fs * 0.5, margin, tableWidth: cw, theme: 'grid', styles: base,
+    head: [D.info.map(i => i[0])], body: [D.info.map(i => i[1])],
+    headStyles: { fillColor: rgb(XL.label), textColor: rgb(XL.labelInk), fontStyle: 'bold' },
+    bodyStyles: { fillColor: rgb(XL.value), textColor: 0, fontStyle: 'bold' }
+  });
+  doc.autoTable({
+    startY: doc.lastAutoTable.finalY + fs * 0.5, margin, tableWidth: cw, theme: 'grid', styles: base, showFoot: 'lastPage', showHead: 'everyPage',
+    head: [['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Evening Duty', ...D.flds.map(f => `${f.name} (Rs.)`)]],
+    body: D.list.map(x => [x.n, x.date, x.day, x.status, dutyCell(x.mNo, x.mPl), dutyCell(x.eNo, x.ePl), ...x.amt.map(money0)]),
+    foot: [[{ content: 'TOTALS', colSpan: 3, rowSpan: 2 }, ...totalLabels(D)], totalValues(D)],
+    headStyles: { fillColor: rgb(XL.head), textColor: 255, fontStyle: 'bold' },
+    footStyles: { fillColor: rgb(XL.label), textColor: rgb(XL.labelInk), fontStyle: 'bold' },
+    columnStyles: { 0: { cellWidth: fs * 2.6 } },
+    didParseCell: d => {
+      if (d.section === 'foot' && d.row.index === 1) { d.cell.styles.fillColor = rgb(XL.value); d.cell.styles.textColor = 0; }
+      if (d.section !== 'body') return;
+      const k = D.list[d.row.index].kind;
+      if (k) d.cell.styles.fillColor = rgb(k === 'h' ? XL.holiday : XL.leave);
+      if (k && d.column.index === 3) { d.cell.styles.textColor = rgb(k === 'h' ? XL.holidayInk : XL.leaveInk); d.cell.styles.fontStyle = 'bold'; }
+    }
+  });
+  return doc;
+}
 async function buildPDF() {
   await loadLibs('pdf');
-  const D = exportData(); const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' }); const W = doc.internal.pageSize.getWidth();
-  doc.setFillColor(31, 78, 121); doc.rect(36, 30, W - 72, 26, 'F');
-  doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text(D.title, W / 2, 47, { align: 'center' });
-  doc.setTextColor(40); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-  doc.text(D.metaL, 36, 70); doc.text(D.metaR, W - 36, 70, { align: 'right' });
-  const duty = (no, pl) => [no, pl].filter(Boolean).join('\n');
-  doc.autoTable({
-    startY: 78, margin: { left: 36, right: 36 }, theme: 'grid', showFoot: 'lastPage',
-    head: [['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Evening Duty', ...D.flds.map(f => `${f.name} (Rs.)`)]],
-    body: D.list.map(x => [x.n, x.date, x.day, x.status, duty(x.mNo, x.mPl), duty(x.eNo, x.ePl), ...x.amt.map(money0)]),
-    foot: [['TOTALS', '', '', `On Duty: ${D.tot.duty}`, `Morning: ${D.tot.m}`, `Evening: ${D.tot.e}`, ...D.flds.map(f => money0(D.tot.amt[f.id]))]],
-    styles: { fontSize: 7.5, cellPadding: 2.5, halign: 'center', valign: 'middle', lineColor: [201, 214, 227], lineWidth: 0.5, textColor: 20 },
-    headStyles: { fillColor: [46, 117, 182], textColor: 255, fontStyle: 'bold' },
-    footStyles: { fillColor: [214, 228, 240], textColor: [31, 78, 121], fontStyle: 'bold' },
-    didParseCell: d => { if (d.section !== 'body') return; const k = D.list[d.row.index].kind; if (k === 'h') d.cell.styles.fillColor = [255, 228, 225]; else if (k === 'lv') d.cell.styles.fillColor = [255, 241, 217]; }
-  });
-  doc.setFontSize(7.5); doc.setTextColor(70);
-  doc.text(doc.splitTextToSize(D.legend.replace(/·/g, '|'), W - 72), 36, doc.lastAutoTable.finalY + 14);
+  const D = exportData(); let doc;
+  // Largest font (9pt down to 6pt) that keeps the whole sheet on page 1 inside the 60% box; longer ranges continue on more pages.
+  for (let fs = 9; fs >= 6; fs -= 0.25) { doc = drawPDF(D, fs); if (doc.getNumberOfPages() === 1) break; }
   return doc.output('arraybuffer');
 }
 async function buildXLSX() {
   await loadLibs('xlsx');
   const D = exportData(); const wb = new window.ExcelJS.Workbook(); wb.creator = 'Daily Duty Tracker';
-  const ws = wb.addWorksheet(D.r.title.slice(0, 31).replace(/[\\/?*[\]:]/g, '-'), { pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+  const ws = wb.addWorksheet(D.r.title.slice(0, 31).replace(/[\\/?*[\]:]/g, '-'), { pageSetup: { paperSize: 9, orientation: 'portrait' } });
   const head = ['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Morning Place', 'Evening Duty', 'Evening Place', ...D.flds.map(f => `${f.name} (₹)`), 'Note'];
-  const n = head.length, first = 4, last = first + D.list.length - 1;
-  const fill = argb => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
-  const thin = { style: 'thin', color: { argb: 'FFC9D6E3' } }; const border = { top: thin, left: thin, bottom: thin, right: thin };
-  ws.mergeCells(1, 1, 1, n); const t = ws.getCell(1, 1);
-  Object.assign(t, { value: D.title, font: { bold: true, size: 14, color: { argb: 'FFFFFFFF' } }, fill: fill('FF1F4E79'), alignment: { horizontal: 'center', vertical: 'middle' } }); ws.getRow(1).height = 24;
-  ws.mergeCells(2, 1, 2, n); ws.getCell(2, 1).value = `${D.metaL}    ${D.metaR}`; ws.getCell(2, 1).font = { size: 10, color: { argb: 'FF333333' } };
-  const hr = ws.getRow(3); hr.values = head; hr.eachCell(c => Object.assign(c, { font: { bold: true, color: { argb: 'FFFFFFFF' } }, fill: fill('FF2E75B6'), alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }, border }));
+  const n = head.length;
+  const fill = hex => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + hex } });
+  const thin = { style: 'thin', color: { argb: 'FF' + XL.grid } }; const border = { top: thin, left: thin, bottom: thin, right: thin };
+  const font = (o = {}) => ({ name: 'Arial', size: 10, ...o });
+  const style = (c, f, fnt) => Object.assign(c, { fill: fill(f), font: fnt, border, alignment: { horizontal: 'center', vertical: 'middle', wrapText: true } });
+  // Row 1: title
+  ws.mergeCells(1, 1, 1, n); style(ws.getCell(1, 1), XL.title, font({ bold: true, size: 13, color: { argb: 'FFFFFFFF' } })); ws.getCell(1, 1).value = D.title; ws.getRow(1).height = 28;
+  // Rows 2–3: name / staff ID / depot / period, coloured like the sheet's TOTALS rows
+  const k = D.info.length; let c0 = 1;
+  D.info.forEach(([label, value], i) => {
+    const span = Math.floor(n / k) + (i < n % k ? 1 : 0), c1 = c0 + span - 1;
+    if (c1 > c0) { ws.mergeCells(2, c0, 2, c1); ws.mergeCells(3, c0, 3, c1); }
+    for (let c = c0; c <= c1; c++) { style(ws.getCell(2, c), XL.label, font({ bold: true, color: { argb: 'FF' + XL.labelInk } })); style(ws.getCell(3, c), XL.value, font({ bold: true })); }
+    ws.getCell(2, c0).value = label; ws.getCell(3, c0).value = value; c0 = c1 + 1;
+  });
+  const hr = ws.getRow(4); hr.values = head; hr.height = 30;
+  hr.eachCell(c => style(c, XL.head, font({ bold: true, color: { argb: 'FFFFFFFF' } })));
+  const first = 5, last = first + D.list.length - 1;
   const num = v => v === '' ? null : /^\d+$/.test(v) ? +v : v; const txt = v => v === '' ? null : v;
   D.list.forEach((x, i) => {
     const row = ws.getRow(first + i);
     row.values = [x.n, x.date, x.day, txt(x.status), num(x.mNo), txt(x.mPl), num(x.eNo), txt(x.ePl), ...x.amt.map(a => a === '' ? null : +a), txt(x.note)];
-    row.eachCell({ includeEmpty: true }, (c, col) => { c.border = border; c.alignment = { horizontal: col === 6 || col === 8 || col === n ? 'left' : 'center' }; if (x.kind) c.fill = fill(x.kind === 'h' ? 'FFFFE4E1' : 'FFFFF1D9'); });
+    for (let col = 1; col <= n; col++) {
+      const c = row.getCell(col); c.border = border; c.font = font(); c.alignment = { horizontal: col === 6 || col === 8 || col === n ? 'left' : 'center', vertical: 'middle' };
+      if (x.kind) c.fill = fill(x.kind === 'h' ? XL.holiday : XL.leave);
+    }
+    if (x.kind) row.getCell(4).font = font({ bold: true, color: { argb: 'FF' + (x.kind === 'h' ? XL.holidayInk : XL.leaveInk) } });
   });
-  const col = k => ws.getColumn(k).letter;
-  const tr = ws.getRow(last + 1);
-  tr.values = ['TOTALS', '', '',
-    { formula: `COUNTIF(${col(4)}${first}:${col(4)}${last},"On duty")`, result: D.tot.duty },
-    { formula: `COUNTA(${col(5)}${first}:${col(5)}${last})`, result: D.tot.m }, '',
-    { formula: `COUNTA(${col(7)}${first}:${col(7)}${last})`, result: D.tot.e }, '',
-    ...D.flds.map((f, i) => ({ formula: `SUM(${col(9 + i)}${first}:${col(9 + i)}${last})`, result: D.tot.amt[f.id] })), ''];
-  tr.eachCell({ includeEmpty: true }, c => Object.assign(c, { font: { bold: true, color: { argb: 'FF1F4E79' } }, fill: fill('FFD6E4F0'), border, alignment: { horizontal: 'center' } }));
+  // TOTALS: label row + value row with live formulas, like the original sheet
+  const L = last + 1, V = last + 2, col = c => ws.getColumn(c).letter;
+  ws.mergeCells(L, 1, V, 3);
+  for (let c = 1; c <= n; c++) { style(ws.getCell(L, c), XL.label, font({ bold: true, color: { argb: 'FF' + XL.labelInk } })); style(ws.getCell(V, c), XL.value, font({ bold: true })); }
+  ws.getCell(L, 1).value = 'TOTALS';
+  const labels = totalLabels(D);
+  const spots = [4, 5, 7, ...D.flds.map((f, i) => 9 + i)];
+  const formulas = [`COUNTIF(${col(4)}${first}:${col(4)}${last},"On duty")`, `COUNTA(${col(5)}${first}:${col(5)}${last})`, `COUNTA(${col(7)}${first}:${col(7)}${last})`, ...D.flds.map((f, i) => `SUM(${col(9 + i)}${first}:${col(9 + i)}${last})`)];
+  const results = [D.tot.duty, D.tot.m, D.tot.e, ...D.flds.map(f => D.tot.amt[f.id])];
+  spots.forEach((c, i) => { ws.getCell(L, c).value = labels[i]; ws.getCell(V, c).value = { formula: formulas[i], result: results[i] }; });
+  ws.getRow(L).height = 22; ws.getRow(V).height = 22;
   D.flds.forEach((f, i) => { ws.getColumn(9 + i).numFmt = '[>=100000]##\\,##\\,##0;##,##0'; });
-  ws.mergeCells(last + 3, 1, last + 3, n); ws.getCell(last + 3, 1).value = D.legend; ws.getCell(last + 3, 1).fill = fill('FFDAEEF3'); ws.getCell(last + 3, 1).font = { size: 9 };
-  [5, 12, 11, 9, 12, 18, 12, 18, ...D.flds.map(() => 13), 28].forEach((w, i) => ws.getColumn(i + 1).width = w);
-  ws.views = [{ state: 'frozen', ySplit: 3 }];
+  [5, 13, 11, 10, 12, 18, 12, 18, ...D.flds.map(() => 13), 26].forEach((w, i) => ws.getColumn(i + 1).width = w);
+  ws.views = [{ state: 'frozen', ySplit: 4 }];
   return await wb.xlsx.writeBuffer();
 }
 /* Saving: inside claude.ai the viewer's download capability asks the viewer first;
@@ -1247,7 +1306,7 @@ async function doExport(fmt, again) {
   if (!again) {
     const preview = fmt === 'csv'
       ? `<div class="xl" style="overflow:auto"><pre style="margin:0;padding:10px;font:11px/1.5 var(--f-mono);white-space:pre">${esc(data.replace('﻿', '').split('\r\n').slice(0, 14).join('\n'))}${rows.length > 13 ? '\n…' : ''}</pre></div>`
-      : `<div class="paper-wrap"><div class="paper" id="paper">${paperHtml()}</div></div>`;
+      : `<div class="paper-wrap">${paperHtml()}</div><div class="cut-note">Dashed line shows where to cut the printed A4 sheet</div>`;
     openLayer(`<div class="sheet-card" style="height:92%">${sheetHead('Export')}<div class="sheet-body"><div class="filecard">${ic(FMT[fmt].icon, 40)}<div class="grow"><b>${esc(name)}</b><span class="muted small">${plural(rows.length, 'row')} · ${FMT[fmt].note}</span></div></div>${preview}</div><div class="sheet-foot"><button class="btn green block" data-act="xAgain" data-f="${fmt}" id="x-again">Download again</button></div></div>`,
       { onMount: el => fitPaper(el) });
   }
@@ -1259,7 +1318,7 @@ async function doExport(fmt, again) {
   else toast(`Couldn't save ${name}. Try again.`, 'err');
 }
 function updateAgainBtn() { const b = $('#x-again'); if (b) { b.disabled = !!X.busy; b.textContent = X.busy ? 'Preparing…' : 'Download again'; } }
-function fitPaper(el) { const p = el.querySelector('#paper'); if (!p) return; const w = el.querySelector('.paper-wrap').clientWidth - 24; const s = Math.min(1, w / 595); p.style.transform = `scale(${s})`; p.style.marginBottom = `${-(1 - s) * p.offsetHeight}px`; p.parentElement.style.overflow = 'hidden'; }
+function fitPaper(el) { const p = el.querySelector('.a4'); if (!p) return; fitBlock(el); const w = el.querySelector('.paper-wrap').clientWidth - 24; const s = Math.min(1, w / 595); p.style.transform = `scale(${s})`; p.style.marginBottom = `${-(1 - s) * 842}px`; p.style.marginRight = `${-(1 - s) * 595}px`; }
 
 /* ---------------- Settings ---------------- */
 function secHtml(id, icon, title, sub, body) {
@@ -1275,7 +1334,7 @@ function renderSettings() {
   const fieldsBody = `<div>${S.fields.map(f => `<div class="field-li">${ic('money', 28)}<button class="grow" style="text-align:left" data-act="editField" data-id="${f.id}"><div style="font-weight:700">${esc(f.name)}</div><div class="muted small">${f.on ? 'Shown in entry form and exports' : 'Hidden'} · tap to rename</div></button><button class="toggle ${f.on ? 'on' : ''}" data-act="fieldToggle" data-id="${f.id}" role="switch" aria-checked="${f.on}" aria-label="Show ${esc(f.name)}"></button></div>`).join('')}</div>
     ${S.fields.length < 4 ? `<button class="btn soft" data-act="addField">${ic('coin', 20)}Add amount field</button>` : '<div class="muted small">Up to 4 amount fields.</div>'}`;
   const rulesBody = `<div class="setrow"><div class="lbl"><div>Weekly off day<small>New entries on this day start as Holiday</small></div></div><button class="btn ghost sm" data-act="weeklyOff">${st.weeklyOff < 0 ? 'None' : WDL[st.weeklyOff]} ▾</button></div>`;
-  const lookBody = `<div class="field"><span class="flabel">Theme</span><div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([k, l]) => `<button class="${st.theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div></div>
+  const lookBody = `<div class="field"><span class="flabel">Theme</span><div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark'], ['darkblue', 'Dark blue']].map(([k, l]) => `<button class="${st.theme === k ? 'on' : ''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div></div>
     <div class="field"><span class="flabel">Colour</span><div class="swatches">${[['navy', '#2E75B6'], ['teal', '#2A7C84'], ['plum', '#77509A'], ['slate', '#475775'], ['rust', '#A95A36']].map(([k, c]) => `<button class="swatch ${st.palette === k ? 'on' : ''}" style="background:${c}" data-act="palette" data-v="${k}" aria-label="${k} colour"></button>`).join('')}</div></div>
     <div class="field"><span class="flabel">Text size</span><div class="seg">${[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, l]) => `<button class="${st.text === k ? 'on' : ''}" data-act="textSize" data-v="${k}">${l}</button>`).join('')}</div></div>
     <div class="setrow"><div class="lbl">Bold text</div><button class="toggle ${st.bold ? 'on' : ''}" data-act="bold" role="switch" aria-checked="${st.bold}" aria-label="Bold text"></button></div>`;
@@ -1287,7 +1346,7 @@ function renderSettings() {
     ${secHtml('places', 'map', 'Places & categories', `${plural(S.places.length, 'place')} in ${plural(S.categories.length, 'category', 'categories')}`, placesBody)}
     ${secHtml('fields', 'money', 'Amount fields', esc(enabledFields().map(f => f.name).join(', ') || 'None shown'), fieldsBody)}
     ${secHtml('rules', 'tearcal', 'Duty rules', `Weekly off: ${st.weeklyOff < 0 ? 'None' : WDL[st.weeklyOff]}`, rulesBody)}
-    ${secHtml('look', 'palette', 'Appearance', `${({ system: 'System', light: 'Light', dark: 'Dark' })[st.theme]} theme · ${({ s: 'Small', m: 'Medium', l: 'Large' })[st.text]} text`, lookBody)}
+    ${secHtml('look', 'palette', 'Appearance', `${({ system: 'System', light: 'Light', dark: 'Dark', darkblue: 'Dark blue' })[st.theme]} theme · ${({ s: 'Small', m: 'Medium', l: 'Large' })[st.text]} text`, lookBody)}
     ${secHtml('sync', 'cloud', 'Sync & backup', 'Cloud copy of your entries', syncBody)}
     <button class="btn block logout" data-act="logout">${ic('lock', 20)}Log out</button>
     <div class="ver">Daily Duty Tracker · prototype v0.1 · static demo data</div>`;

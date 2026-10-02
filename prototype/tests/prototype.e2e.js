@@ -149,6 +149,12 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   await click('#layers .layer:last-child .sheet-head [data-act=close]');
   const pdfFile = await grab('pdf');
   ok('TC-72 real PDF downloaded', fs.readFileSync(pdfFile).slice(0, 5).toString() === '%PDF-', path.basename(pdfFile));
+  { const pdf = fs.readFileSync(pdfFile).toString('latin1');
+    ok('TC-84 PDF has no legend', !/Legend/i.test(pdf));
+    ok('TC-85 month fits on one page', (pdf.match(/\/Type \/Page\b(?!s)/g) || []).length === 1);
+    const xs = [...pdf.matchAll(/(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) re/g)].map(m => [+m[1], +m[2], +m[3], +m[4]]);
+    const maxRight = Math.max(...xs.map(([x, , w]) => Math.max(x, x + w))), maxDown = Math.max(...xs.map(([, y, , h]) => 841.89 - Math.min(y, y + h)));
+    ok('TC-85b everything drawn inside top-left 60% × 60%', xs.length > 0 && maxRight <= 595.28 * 0.6 + 0.5 && maxDown <= 841.89 * 0.6 + 0.5, `${xs.length} boxes, right ${maxRight.toFixed(0)}/357, bottom ${maxDown.toFixed(0)}/505`); }
   await shot('15-export-pdf');
   await click('#layers .layer:last-child .sheet-head [data-act=close]');
   const xlsxFile = await grab('xlsx');
@@ -190,7 +196,10 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   await click('[data-act=offline]'); await page.waitForTimeout(2600);
   ok('TC-47 reconnect → synced', (await page.getAttribute('#syncdot', 'class')).includes('ok'));
   // Dark + large text sweep
-  await click('[data-act=theme][data-v=dark]'); await click('[data-act=textSize][data-v=l]'); await click('[data-act=bold]');
+  await click('[data-act=theme][data-v=darkblue]');
+  ok('TC-86 Dark blue theme = navy background', await page.evaluate(() => getComputedStyle(app).backgroundColor) === 'rgb(12, 19, 30)');
+  await click('[data-act=theme][data-v=dark]');
+  ok('TC-87 Dark theme = pure black background', await page.evaluate(() => getComputedStyle(app).backgroundColor) === 'rgb(0, 0, 0)'); await click('[data-act=textSize][data-v=l]'); await click('[data-act=bold]');
   await shot('20-settings-dark-large');
   for (const t of ['home', 'records', 'export', 'settings']) { await click(`.tab[data-tab=${t}]`); ok(`UI ${t} dark/large/bold no overflow`, (await overflow()) <= 0); await shot(`21-${t}-dark-large`); }
   await click('[data-act=textSize][data-v=m]'); await click('[data-act=bold]');

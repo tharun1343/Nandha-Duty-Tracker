@@ -8,7 +8,7 @@ Living document. Every feature or bug fix adds cases here.
 - **Not run yet**: written down, not yet exercised.
 - **Build**: can only be tested in the real app (Supabase, Android APK, real phone).
 
-Last prototype run: 91 automated checks, 0 failures, no app console errors. The only console error was Google Fonts being blocked by the test sandbox's network proxy.
+Last prototype run: 96 automated checks, 0 failures, no app console errors. The only console error was Google Fonts being blocked by the test sandbox's network proxy.
 
 ---
 
@@ -90,7 +90,9 @@ Last prototype run: 91 automated checks, 0 failures, no app console errors. The 
 | TC-71 | Export | Include empty days | Toggle off | Days with no entry left out | Medium | Pass (auto) |
 | TC-37 | Export | CSV | Download CSV | Header + one row per day; ₹ amounts; opens in Excel (UTF-8 BOM) | High | Pass (auto) |
 | TC-83 | Export | Save inside claude.ai | Tap a download on the shared page | Viewer asks to confirm the file name; Cancel → "Download cancelled" toast | High | Not run yet (needs the claude.ai viewer) |
-| TC-72 | Export | PDF | Download PDF | Real A4 PDF: navy title, blue header, pink Sundays, amber leave, totals row; name/ID/depot in header; a month fits one page | High | Pass (auto) + visual |
+| TC-72 | Export | PDF | Download PDF | Real A4 PDF: navy title; Name / Staff ID / Depot / Period block in the sheet's TOTALS colours (light-blue labels, pale-blue values); blue header; pink Sundays with red "Holiday"; amber leave; two-row TOTALS like the sheet; no legend | High | Pass (auto) + visual |
+| TC-84 | Export | No legend | Export PDF / Excel | No legend line in either file | High | Pass (auto) |
+| TC-85 | Export | Print area | Export a month as PDF | Whole sheet inside the top-left 60% of the A4 width and height; rest of the page blank for cutting; font shrinks (9 → 6 pt) to fit; ranges longer than a month continue on more pages inside the same area | High | Pass (auto) |
 | TC-73 | Export | Excel | Download Excel | Real .xlsx: same colours, separate place columns, numbers as numbers, live `COUNTIF`/`COUNTA`/`SUM` totals like the original sheet; blank cells left empty | High | Pass (auto) |
 | TC-74 | Export | Real files on phone | Export on Android | File saved/shared (WhatsApp, Files) | High | Build |
 
@@ -128,6 +130,8 @@ Last prototype run: 91 automated checks, 0 failures, no app console errors. The 
 | ID | Area | Scenario | Steps | Expected result | Priority | Status |
 |---|---|---|---|---|---|---|
 | UI-01 | UI | No horizontal overflow | All tabs at 360 px; light, dark; Small/Medium/Large; bold on/off | No sideways scroll, no clipped text | High | Pass (auto) |
+| TC-86 | UI | Dark blue theme | Settings → Appearance → Dark blue | Navy background (the original dark look) | Medium | Pass (auto) |
+| TC-87 | UI | Dark theme | Settings → Appearance → Dark, or System on a dark phone | Pure black background | High | Pass (auto) |
 | TC-48 | UI | Back closes sheet first | Open a sheet → Back | Sheet closes, tab unchanged | High | Pass (auto) |
 | TC-49 | UI | Back → Home | Back again | Goes to Home | High | Pass (auto) |
 | UI-02 | UI | Toast position | Toast while a sheet is open | Toast moves to top so it never covers the sheet's button | Medium | Pass (auto) |
