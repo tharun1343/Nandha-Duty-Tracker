@@ -1,5 +1,5 @@
 /* Phone features through Capacitor, with web fallbacks. Plugins load lazily. */
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 
 export const isNative = Capacitor.isNativePlatform();
 
@@ -77,3 +77,11 @@ export async function onReminderTap(fn) {
   const { LocalNotifications } = await import('@capacitor/local-notifications');
   LocalNotifications.addListener('localNotificationActionPerformed', a => fn(a.notification && a.notification.extra && a.notification.extra.date));
 }
+
+/* ---- In-app updates (Android): download the APK inside the app, then open the installer ---- */
+const AppUpdater = registerPlugin('AppUpdater'); // android/app/src/main/java/.../AppUpdaterPlugin.java
+export async function downloadUpdate(url, onProgress) {
+  const sub = await AppUpdater.addListener('progress', e => onProgress && onProgress(e.percent));
+  try { return await AppUpdater.download({ url }); } finally { sub.remove(); }
+}
+export async function installUpdate() { return AppUpdater.install(); }

@@ -9,7 +9,7 @@ import '@fontsource/ibm-plex-mono/600.css';
 import '@fontsource/noto-sans-tamil/700.css';
 import './styles.css';
 import { ICONS } from './icons.js';
-import { APP_VERSION, UPDATE_URL, RELEASES_URL } from './config.js';
+import { APP_VERSION, UPDATE_URLS, WEB_UPDATE_URL, RELEASES_URL } from './config.js';
 import * as cloud from './cloud.js';
 import * as SYNC from './sync.js';
 import * as native from './native.js';
@@ -984,7 +984,7 @@ function renderSettings() {
     ${secHtml('remind', 'bell', 'Reminder', rem.on ? `Daily at ${fmtTime(rem.time)}` : 'Off', remBody)}
     ${secHtml('sync', 'cloud', 'Sync & backup', esc(syncState().text), syncBody)}
     <div class="card upd-set" id="upd-set"><div class="row">${ic('bell', 32)}<div class="grow"><b>App updates · version ${esc(APP_VERSION)}</b><div class="muted small" id="upd-text">${esc(updText())}</div></div></div>
-      <div class="actions">${UPD.info ? '<button class="btn primary sm" data-act="updateNow">Update now</button>' : '<button class="btn soft sm" data-act="checkUpdate">Check for updates</button>'}<button class="btn ghost sm" data-act="downloadLatest">Download latest</button></div></div>
+      ${updBar()}<div class="actions">${UPD.state === 'available' ? `<button class="btn primary sm" data-act="updateNow">${updLabel()}</button>` : '<button class="btn soft sm" data-act="checkUpdate">Check for updates</button>'}${native.isNative ? '<button class="btn ghost sm" data-act="downloadLatest">Download latest</button>' : ''}</div></div>
     ${signedIn ? `<button class="btn block logout" data-act="logout">${ic('lock', 20)}Log out</button>` : ''}
     <div class="ver">Daily Duty Tracker · v${esc(APP_VERSION)}</div>`;
 }
@@ -1222,42 +1222,47 @@ function refreshReminders() {
 }
 
 /* ---------------- App updates ---------------- */
-const UPD = { info: null, checkedAt: 0, state: 'idle', at: 0 }; // state: idle | latest | available | off | offline | error
+const UPD = { info: null, checkedAt: 0, state: 'idle', at: 0, dl: 'idle', pct: 0 };
+// state: idle | latest | available | off | offline | error   ·   dl (download/install): idle | downloading | install | permission | updating | error
 function cmpVer(a, b) { const pa = String(a).split(/[.-]/).map(n => parseInt(n, 10) || 0), pb = String(b).split(/[.-]/).map(n => parseInt(n, 10) || 0); for (let i = 0; i < 3; i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0); } return 0; }
 const UPD_TEXT = {
   idle: 'Checks for updates when you open the app',
   latest: () => `Up to date · checked ${ago(UPD.at)}`,
-  available: () => `Version ${UPD.info.version} is available`,
-  off: 'Automatic updates aren’t switched on yet. Use “Download latest” to get the newest version.',
+  available: () => UPD.info ? `Version ${UPD.info.version} is available` : 'A new version is available',
+  off: () => native.isNative ? 'Automatic updates aren’t switched on yet. Use “Download latest” to get the newest version.' : 'No published update found. The web version updates itself when a new version goes live.',
   offline: 'You are offline. It checks again when you are back online.',
+  manual: () => `Version ${UPD.manual} is out as a test build. Install it with “Download latest” (in-app updates start once the signing key is added in GitHub).`,
   error: 'Couldn’t reach the update server. Try again later.'
 };
 const updText = () => { const t = UPD_TEXT[UPD.state]; return typeof t === 'function' ? t() : t; };
+const updateSources = () => native.isNative ? UPDATE_URLS : [WEB_UPDATE_URL];
 async function checkUpdate(manual) {
   if (!manual && Date.now() - UPD.checkedAt < 30 * 60000) return;
   UPD.checkedAt = Date.now();
-  if (!UPDATE_URL) UPD.state = 'off';
-  else if (!isOnline()) UPD.state = 'offline';
+  const sources = updateSources();
+  let state = 'off';
+  if (!sources.length) state = 'off';
+  else if (!isOnline()) state = 'offline';
   else {
-    try {
-      const r = await fetch(`${UPDATE_URL}?t=${Date.now()}`, { cache: 'no-store' });
-      if (r.status === 400 || r.status === 404) UPD.state = 'off'; // nothing published to the update channel yet
-      else if (!r.ok) throw new Error('HTTP ' + r.status);
-      else {
+    for (const src of sources) {
+      try {
+        const r = await fetch(`${src}${src.includes('?') ? '&' : '?'}t=${Date.now()}`, { cache: 'no-store' });
+        if (r.status === 400 || r.status === 404) continue; // nothing published at this source yet
+        if (!r.ok) { state = 'error'; continue; }
         const v = await r.json();
-        UPD.info = v && v.version && cmpVer(v.version, APP_VERSION) > 0 ? v : null;
-        UPD.state = UPD.info ? 'available' : 'latest'; UPD.at = Date.now();
-      }
-    } catch (e) { UPD.state = isOnline() ? 'error' : 'offline'; }
+        const newer = v && v.version && cmpVer(v.version, APP_VERSION) > 0;
+        // Android only installs updates signed with the same key, so unsigned test builds are installed by hand.
+        if (newer && native.isNative && v.signed === false) { UPD.info = null; UPD.manual = v.version; state = 'manual'; UPD.at = Date.now(); break; }
+        UPD.info = newer ? v : null;
+        state = UPD.info ? 'available' : 'latest'; UPD.at = Date.now();
+        break;
+      } catch (e) { state = isOnline() ? 'error' : 'offline'; }
+    }
   }
-  if (manual) toast(updText(), { latest: 'ok', available: 'info', off: 'info' }[UPD.state] || 'warn');
+  if (state !== 'available' && UPD.webWaiting) state = 'available'; // web: a newer version is already downloaded
+  UPD.state = state;
+  if (manual) toast(updText(), { latest: 'ok', available: 'info', off: 'info', manual: 'info' }[UPD.state] || 'warn');
   renderUpdate();
-}
-function downloadLatest() {
-  const url = (UPD.info && UPD.info.apk) || RELEASES_URL;
-  if (!url) return toast('No download link in this build', 'warn');
-  native.openUrl(url);
-  if (!(UPD.info && UPD.info.apk)) toast('Opening GitHub Releases. Sign in to GitHub if it asks, then download duty-tracker.apk.', 'info');
 }
 const isMajorUpdate = () => UPD.info && cmpVer(String(parseInt(UPD.info.version, 10)), String(parseInt(APP_VERSION, 10))) > 0;
 function renderUpdate() {
@@ -1265,17 +1270,85 @@ function renderUpdate() {
   block.hidden = !major;
   if (major) $('#upd-ver').textContent = `Version ${UPD.info.version} is required. Your version is ${APP_VERSION}.`;
   if (!$('#main').hidden) { renderHome(); renderSettings(); }
+  updateProgressUI();
 }
+const updLabel = () => ({ downloading: `Downloading… ${UPD.pct}%`, install: 'Install update', permission: 'Install update', updating: 'Updating…', error: 'Try again' })[UPD.dl] || 'Update now';
+/* Keeps every "Update now" button and progress bar in step without re-rendering the screens. */
+function updateProgressUI() {
+  $$('[data-act=updateNow]').forEach(b => { b.textContent = updLabel(); b.disabled = UPD.dl === 'downloading' || UPD.dl === 'updating'; });
+  $$('.upd-bar').forEach(bar => { bar.hidden = UPD.dl !== 'downloading'; const i = bar.firstElementChild; if (i) i.style.width = UPD.pct + '%'; });
+}
+const updBar = () => `<div class="upd-bar" ${UPD.dl === 'downloading' ? '' : 'hidden'} role="progressbar" aria-label="Download progress"><i style="width:${UPD.pct}%"></i></div>`;
 function updateBanner() {
-  if (!UPD.info || isMajorUpdate()) return '';
+  if (UPD.state !== 'available' || isMajorUpdate()) return '';
+  const v = UPD.info ? UPD.info.version : 'new';
   const sn = LS.get('ddt:updSnooze') || {};
-  if (sn.v === UPD.info.version && Date.now() < sn.until) return '';
-  return `<div class="card upd-card"><div class="upd">${ic('bell', 34)}<div class="grow"><b>Version ${esc(UPD.info.version)} is available</b><span class="muted small">${esc(UPD.info.notes || 'Update to get the latest fixes.')}</span></div></div><div class="actions"><button class="btn primary sm" data-act="updateNow">Update now</button><button class="btn ghost sm" data-act="updateLater">Later</button></div></div>`;
+  if (sn.v === v && Date.now() < sn.until && UPD.dl === 'idle') return '';
+  return `<div class="card upd-card"><div class="upd">${ic('bell', 34)}<div class="grow"><b>${UPD.info ? `Version ${esc(UPD.info.version)} is available` : 'A new version is available'}</b><span class="muted small">${esc((UPD.info && UPD.info.notes) || 'Update to get the latest fixes.')}</span></div></div>${updBar()}<div class="actions"><button class="btn primary sm" data-act="updateNow">${updLabel()}</button>${UPD.dl === 'idle' ? '<button class="btn ghost sm" data-act="updateLater">Later</button>' : ''}</div></div>`;
+}
+/* Android: download inside the app (progress shown), then hand the file to the Android installer. */
+async function updateNative() {
+  if (UPD.dl === 'install' || UPD.dl === 'permission') return installNative();
+  const apk = UPD.info && UPD.info.apk;
+  if (!apk || !/^https:\/\//.test(apk)) return toast('This update has no download link yet. Use “Download latest” in Settings.', 'warn');
+  if (!isOnline()) return toast('You are offline. Connect to download the update.', 'warn');
+  UPD.dl = 'downloading'; UPD.pct = 0; updateProgressUI();
+  try {
+    await native.downloadUpdate(apk, pct => { UPD.pct = pct; updateProgressUI(); });
+    UPD.dl = 'install'; updateProgressUI();
+    await installNative();
+  } catch (e) {
+    UPD.dl = 'error'; updateProgressUI();
+    toast(/HTTP 404/.test(e.message) ? 'The update file isn’t public yet. Make the repository public (Settings → General), or use “Download latest”.' : `Couldn’t download the update: ${e.message}`, 'err');
+  }
+}
+async function installNative() {
+  try {
+    const r = await native.installUpdate();
+    if (r && r.needsPermission) { UPD.dl = 'permission'; updateProgressUI(); toast('Allow “Install unknown apps” for Duty Tracker, come back, then tap Install update.', 'info'); }
+    else { UPD.dl = 'install'; updateProgressUI(); toast('Tap Update on the Android screen to finish. Your entries stay on the phone.', 'info'); }
+  } catch (e) { UPD.dl = 'error'; updateProgressUI(); toast(`Couldn’t open the installer: ${e.message}`, 'err'); }
+}
+/* Web: the service worker has (or fetches) the new version; switch to it and reload in place. */
+let swReg = null;
+async function registerSW() {
+  if (native.isNative || !('serviceWorker' in navigator) || !import.meta.env.PROD) return;
+  try {
+    swReg = await navigator.serviceWorker.register('./sw.js');
+    const flag = () => { if (swReg.waiting && navigator.serviceWorker.controller) { UPD.webWaiting = true; if (UPD.state !== 'available') { UPD.state = 'available'; renderUpdate(); } } };
+    swReg.addEventListener('updatefound', () => { const w = swReg.installing; if (w) w.addEventListener('statechange', () => { if (w.state === 'installed') flag(); }); });
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (UPD.dl === 'updating') location.reload(); });
+    flag();
+  } catch (e) { console.warn('Offline cache not available', e); }
+}
+function waitForInstalled(reg, ms) {
+  return new Promise(res => {
+    const w = reg.installing; if (!w) return res(reg.waiting || null);
+    const t = setTimeout(() => res(reg.waiting || null), ms);
+    w.addEventListener('statechange', () => { if (w.state === 'installed' || w.state === 'redundant') { clearTimeout(t); res(reg.waiting || null); } });
+  });
+}
+async function updateWeb() {
+  UPD.dl = 'updating'; updateProgressUI();
+  try {
+    if (swReg) {
+      if (!swReg.waiting) await swReg.update().catch(() => {});
+      const waiting = swReg.waiting || await waitForInstalled(swReg, 20000);
+      if (waiting && navigator.serviceWorker.controller) { waiting.postMessage({ type: 'SKIP_WAITING' }); setTimeout(() => location.reload(), 5000); return; }
+    }
+  } catch (e) { /* fall through to a plain reload */ }
+  location.reload();
 }
 function updateNow() {
-  if (!UPD.info) return;
-  if (native.isNative && UPD.info.apk) { native.openUrl(UPD.info.apk); toast('Downloading the update. Open the file when it finishes to install it.', 'info'); }
-  else location.reload();
+  if (UPD.dl === 'downloading' || UPD.dl === 'updating') return;
+  if (native.isNative) updateNative(); else updateWeb();
+}
+function downloadLatest() {
+  const url = (UPD.info && UPD.info.apk) || RELEASES_URL;
+  if (native.isNative && UPD.info && UPD.info.apk) return updateNow();
+  if (!url) return toast('No download link in this build', 'warn');
+  native.openUrl(url);
+  toast('Opening GitHub Releases. Sign in to GitHub if it asks, then download duty-tracker.apk.', 'info');
 }
 
 /* ---------------- Actions (event delegation) ---------------- */
@@ -1321,7 +1394,7 @@ const ACT = {
   checkUpdate: () => checkUpdate(true),
   downloadLatest: () => downloadLatest(),
   updateNow: () => updateNow(),
-  updateLater: () => { if (UPD.info) LS.set('ddt:updSnooze', { v: UPD.info.version, until: Date.now() + 24 * 3600e3 }); renderHome(); toast('We will remind you about this update tomorrow', 'info'); },
+  updateLater: () => { LS.set('ddt:updSnooze', { v: UPD.info ? UPD.info.version : 'new', until: Date.now() + 24 * 3600e3 }); renderHome(); toast('We will remind you about this update tomorrow', 'info'); },
   // Entry form
   saveEntry: () => saveEntry(),
   delEntry: () => deleteEntry(F.orig),
@@ -1426,6 +1499,7 @@ async function boot() {
 }
 setInterval(() => { if (!$('#main').hidden) updateSync(); }, 30000);
 boot();
+registerSW();
 
 /* Test hooks (only in the e2e build). */
 if (import.meta.env.VITE_E2E === '1') {

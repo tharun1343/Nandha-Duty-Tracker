@@ -433,3 +433,5 @@ img.i3d{display:block;flex:none;object-fit:contain;-webkit-user-drag:none;user-s
 .shift.off{border:1.5px dashed var(--line);box-shadow:none;opacity:.75}
 .upd-set{display:flex;flex-direction:column;gap:12px}
 .upd-set b{display:block}
+.upd-bar{height:8px;border-radius:8px;background:var(--surface-2);overflow:hidden}
+.upd-bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:8px;transition:width .2s}

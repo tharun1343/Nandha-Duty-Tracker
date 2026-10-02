@@ -1,9 +1,10 @@
 name: Build app
 
 # Update pipeline. Every push runs the tests, then builds a signed Android APK.
-#  - Default branch (or main): GitHub Release "vX.Y.N" + upload to the public Supabase
-#    "releases" bucket (duty-tracker-X.Y.N.apk, duty-tracker-latest.apk, version.json).
-#    Installed apps read version.json and show "Update now / Later".
+#  - Default branch (or main): GitHub Release "vX.Y.N", the web version on GitHub Pages
+#    (with version.json), and the public Supabase "releases" bucket when SUPABASE_SECRET_KEY is set.
+#    Installed apps read version.json and update in place (Android: in-app download + installer;
+#    web: the service worker swaps to the new version and reloads).
 #  - Any other branch: the "preview" pre-release is replaced with the new APK.
 #
 # Settings (GitHub → Settings → Secrets and variables → Actions):
@@ -166,14 +167,19 @@ jobs:
           export BASE="$SB_URL/storage/v1/object/public/releases"
           up duty-tracker.apk "duty-tracker-$VER.apk" application/vnd.android.package-archive
           up duty-tracker.apk "duty-tracker-latest.apk" application/vnd.android.package-archive
-          node -e "console.log(JSON.stringify({ version: process.env.VER, apk: process.env.BASE + '/duty-tracker-' + process.env.VER + '.apk', notes: 'New version of Daily Duty Tracker', built: new Date().toISOString() }, null, 2))" > version.json
+          node -e "console.log(JSON.stringify({ version: process.env.VER, apk: process.env.BASE + '/duty-tracker-' + process.env.VER + '.apk', signed: true, notes: 'New version of Daily Duty Tracker', built: new Date().toISOString() }, null, 2))" > version.json
           up version.json version.json application/json
           echo "published=1" >> "$GITHUB_OUTPUT"
           echo "latest=$BASE/duty-tracker-latest.apk" >> "$GITHUB_OUTPUT"
-      - name: version.json (for the release page)
+      - name: version.json (GitHub Pages / release page)
         if: steps.sb.outputs.published != '1'
+        env:
+          VER: ${{ steps.v.outputs.name }}
+          TAG: ${{ env.STABLE == 'true' && format('v{0}', steps.v.outputs.name) || 'preview' }}
         run: |
-          node -e "console.log(JSON.stringify({ version: '${{ steps.v.outputs.name }}', apk: 'https://github.com/${{ github.repository }}/releases', built: new Date().toISOString() }, null, 2))" > version.json
+          # apk = the release asset (downloadable without login once the repository is public)
+          node -e "console.log(JSON.stringify({ version: process.env.VER, apk: 'https://github.com/' + process.env.GITHUB_REPOSITORY + '/releases/download/' + process.env.TAG + '/duty-tracker.apk', signed: process.env.SIGNED === '1', notes: 'New version of Daily Duty Tracker', built: new Date().toISOString() }, null, 2))" > version.json
+          cat version.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -215,6 +221,13 @@ jobs:
             --title "Preview ${{ steps.v.outputs.name }} (${{ github.ref_name }})" \
             --notes "Test build from branch ${{ github.ref_name }}. Signed: $SIGNED."
 
+      - name: Web version for GitHub Pages (default branch)
+        if: env.STABLE == 'true'
+        run: cp version.json dist/version.json
+      - if: env.STABLE == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with: { path: dist }
+
       - name: Summary
         run: |
           {
@@ -222,5 +235,24 @@ jobs:
             echo "- Signed: $SIGNED"
             [ "$STABLE" = "true" ] && echo "- GitHub Release: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.v.outputs.name }}" || echo "- Preview: https://github.com/${{ github.repository }}/releases/tag/preview"
             [ -n "${{ steps.sb.outputs.latest }}" ] && echo "- Direct download (no login): ${{ steps.sb.outputs.latest }}"
+            [ "$STABLE" = "true" ] && echo "- Web version: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/ (needs GitHub Pages switched on)"
             true
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Web version (Windows / any browser). Needs Settings → Pages → Source: GitHub Actions,
+  # which GitHub only offers for public repositories on the free plan. Until then this job
+  # fails quietly without blocking the APK.
+  pages:
+    needs: android
+    if: github.ref_name == github.event.repository.default_branch || github.ref == 'refs/heads/main'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

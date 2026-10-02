@@ -299,7 +299,7 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   ok('TC-57 sign in again → unsynced change kept and uploaded', await page.evaluate(() => S.profile.phone === '9876500000') && srv.rowsFor('demo@example.com').some(r => r.kind === 'profile' && r.data.phone === '9876500000'));
   // Update banner (minor) and blocking screen (major)
   await page.click('.tab[data-tab=settings]'); await page.evaluate(() => checkUpdate(true)); await page.waitForTimeout(500);
-  ok('TC-99 update channel not published → clear message + Download latest', (await page.textContent('#upd-set')).includes('aren’t switched on yet') && await page.isVisible('[data-act=downloadLatest]'));
+  ok('TC-99 nothing published yet → calm message, no error', (await page.textContent('#upd-set')).includes('No published update found') && await page.isVisible('#upd-set [data-act=checkUpdate]'));
   await page.click('.tab[data-tab=home]');
   UPDATE.version = '1.0.999'; await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); }); await page.click('.tab[data-tab=settings]'); await page.click('[data-act=checkUpdate]'); await page.waitForTimeout(600);
   await page.click('.tab[data-tab=home]'); await page.waitForTimeout(300);
@@ -311,6 +311,23 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   ok('TC-91 major version → blocking update screen', await page.isVisible('#upd-block'));
   await shot('26-update-required');
   UPDATE.version = null;
+
+  // Web version: offline cache (service worker) and in-place update without a new tab
+  { const ctx5 = await newCtx(); const p5 = await ctx5.newPage(); watch(p5); await p5.goto(URL); await p5.waitForTimeout(300);
+    await signIn(p5, 'demo@example.com'); await p5.waitForTimeout(1200);
+    await p5.reload(); await p5.waitForTimeout(1500);
+    ok('TC-100 web: offline cache installed and controlling the page', await p5.evaluate(() => !!navigator.serviceWorker.controller));
+    await ctx5.setOffline(true); await p5.reload(); await p5.waitForTimeout(1200);
+    ok('TC-100b web: app opens with no internet (entries from this browser)', await p5.isVisible('#v-home.active') && await p5.evaluate(() => Object.keys(S.entries).length > 60));
+    await ctx5.setOffline(false);
+    UPDATE.version = '1.0.999'; await p5.evaluate(() => checkUpdate(true)); await p5.waitForTimeout(500);
+    await p5.evaluate(() => { window.__beforeUpdate = 1; });
+    const pagesBefore = ctx5.pages().length;
+    await p5.click('#v-home [data-act=updateNow]');
+    await p5.waitForFunction(() => !window.__beforeUpdate, null, { timeout: 30000 }).catch(() => {});
+    await p5.waitForTimeout(800);
+    ok('TC-101 web: Update now reloads in place (no new tab) and keeps entries', ctx5.pages().length === pagesBefore && await p5.evaluate(() => !window.__beforeUpdate && Object.keys(S.entries).length > 60));
+    UPDATE.version = null; await ctx5.close(); }
 
   // lockout in fresh page
   const ctx2 = await newCtx(); const p2 = await ctx2.newPage(); watch(p2); await p2.goto(URL); await p2.waitForTimeout(300);

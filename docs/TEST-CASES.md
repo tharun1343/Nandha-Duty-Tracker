@@ -104,6 +104,8 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 | TC-97d | Export | Two duties on one day | Morning + evening duty on the same date | PDF: Date and Amount cells merged across both rows, border between the two duties; half day = one row. Excel/CSV: "Half day" column (Morning / Evening) | High | Pass (auto) + visual |
 | TC-98 | Home | Summary period | Home → This month / Lifetime | Defaults to This month; Lifetime shows totals for every saved entry, "Lifetime · since <first date>" | Medium | Pass (auto) |
 | TC-99 | Updates | Channel not published yet | Settings → Check for updates | "Automatic updates aren't switched on yet" + **Download latest** (opens GitHub Releases); no error | High | Pass (auto) |
+| TC-100 | Web | Offline | Open the web version, then go offline and reload | App opens from its offline cache with this browser's entries | High | Pass (auto) |
+| TC-101 | Web | In-place update | New version published → Update now | Reloads the same window into the new version; no new tab; entries kept | High | Pass (auto) |
 | TC-84 | Export | No legend | Export PDF / Excel | No legend line in either file | High | Pass (auto) |
 | TC-85 | Export | Print area | Export a month as PDF | A4 **landscape**; sheet inside the top-left 60% of the width and height (505 × 357 pt); rest blank for cutting; more than 34 duty rows continue on a second page (a day is never split) | High | Pass (auto) |
 | TC-73 | Export | Excel | Download Excel | Real .xlsx: same colours, separate place columns, numbers as numbers, live `COUNTIF`/`COUNTA`/`SUM` totals like the original sheet; blank cells left empty | High | Pass (auto) |
@@ -204,6 +206,7 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 | APK-02 | Back button | Android back with a sheet open → again → again | Closes the sheet, then goes to Home, then exits |
 | APK-03 | Export | Download PDF / Excel / CSV | Android share sheet opens (Save to Files / Drive / WhatsApp); the file opens correctly |
 | APK-04 | Reminder | Settings → Reminder on, time 8:00 PM | Notification asks permission; reminder appears only on duty days without an entry; tapping it opens Add entry for that day |
+| APK-07 | In-app update | Newer signed version published → Update now | Progress bar "Downloading… N%" inside the app, then the Android installer opens (first time: allow "Install unknown apps" for Duty Tracker); no browser tab |
 | APK-05 | Update | Install a newer build over the old one (signed) | Installs over it; entries kept |
 | APK-06 | Real Supabase | Sign in with your real email | Code email arrives (template contains the code); entries sync to the Supabase table |
 

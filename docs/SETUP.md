@@ -64,6 +64,21 @@ Pushes to any other branch only replace the **preview** pre-release, for testing
 Fixed download link, which always gives the newest version:
 `https://hayytgkfuzhoyjsbwhwd.supabase.co/storage/v1/object/public/releases/duty-tracker-latest.apk`
 
+## Web version (Windows or any browser)
+
+**Address:** https://tharun1343.github.io/Nandha-Duty-Tracker/
+
+GitHub Pages hosts it for free, but only for **public** repositories. The repository holds no secrets: the Supabase key in it is the public one, and row-level security keeps each account's data private. So making it public is safe. To switch it on (you):
+1. **Settings → General → Danger Zone → Change repository visibility → Public**
+2. **Settings → Pages → Build and deployment → Source: GitHub Actions**
+3. **Actions → Build app → Run workflow** (or push any change). The address above then works.
+
+Making the repository public also lets the Android app download updates itself from GitHub Releases, so `SUPABASE_SECRET_KEY` becomes optional.
+
+**Use it like an app on Windows:** open the address in Edge or Chrome, sign in with your email code, then use **⋯ → Apps → Install Daily Duty Tracker**. It gets its own window and Start-menu icon, works offline, and syncs with the phone through your account.
+
+**Updates on the web:** when a new version is published, the app shows **Update now**. That switches to the new version and reloads in the same window, with no new tab and nothing lost.
+
 ## 3. Install on your phone
 
 1. On the phone, open the fixed download link above. Or open **github.com/tharun1343/Nandha-Duty-Tracker/releases** while signed in to GitHub, open the newest release and download `duty-tracker.apk`.
