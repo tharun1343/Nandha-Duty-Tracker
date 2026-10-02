@@ -178,6 +178,15 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 | SEC-04 | Secrets | Keys in repo | Search repo | Only public config via GitHub variables; signing key only in GitHub Secrets; `.env`, `*.jks` git-ignored | High | Pass (visual) |
 | SEC-07 | Web | Content-Security-Policy | Built app | Scripts, styles, fonts and images from the app only; network only to the Supabase project and the update URL; no CSP errors during the e2e run | High | Pass (auto) |
 
+## Release pipeline (GitHub Actions)
+| ID | Area | Scenario | Expected result | Status |
+|---|---|---|---|---|
+| CI-01 | Gate | Any test fails | No APK is published | Pass (run #1: tests ran before build) |
+| CI-02 | Build | Push to default branch | Signed APK `1.0.N`, GitHub Release `v1.0.N` | Run #1 built and published (preview channel) |
+| CI-03 | Update channel | Default branch + signing + `SUPABASE_SECRET_KEY` secrets | `duty-tracker-1.0.N.apk`, `duty-tracker-latest.apk`, `version.json` uploaded to the `releases` bucket | Waiting for secrets |
+| CI-04 | Safety | Signing secrets missing | Debug APK on GitHub only; never pushed to phones through the update channel | Built in |
+| CI-05 | Supabase check | Each build | Warns when the `records` table is missing (schema.sql not run) | Built in |
+
 ## Needs a real phone (APK) — not yet run
 | ID | Area | Scenario | Expected result |
 |---|---|---|---|

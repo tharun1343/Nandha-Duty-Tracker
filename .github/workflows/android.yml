@@ -1,11 +1,15 @@
 name: Build app
 
-# Every push: tests, then a signed Android APK.
-#  - main          → GitHub Release "vX.Y.N" (latest) + version.json for the in-app update banner
-#  - other branches → the "preview" pre-release is replaced with the new APK
-# Repository settings used (Settings → Secrets and variables → Actions):
-#  Variables: SUPABASE_URL, SUPABASE_ANON_KEY (public anon key), PAGES_ENABLED=true (optional, public repos)
+# Update pipeline. Every push runs the tests, then builds a signed Android APK.
+#  - Default branch (or main): GitHub Release "vX.Y.N" + upload to the public Supabase
+#    "releases" bucket (duty-tracker-X.Y.N.apk, duty-tracker-latest.apk, version.json).
+#    Installed apps read version.json and show "Update now / Later".
+#  - Any other branch: the "preview" pre-release is replaced with the new APK.
+#
+# Settings (GitHub → Settings → Secrets and variables → Actions):
 #  Secrets:   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+#             SUPABASE_SECRET_KEY  (Supabase → Project Settings → API Keys → secret key; upload only)
+#  Variables (optional overrides of .env.production): SUPABASE_URL, SUPABASE_ANON_KEY, UPDATE_URL
 on:
   push:
     branches: ['**']
@@ -43,20 +47,52 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     env:
-      VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
-      VITE_UPDATE_URL: ${{ vars.UPDATE_URL || (vars.PAGES_ENABLED == 'true' && format('https://{0}.github.io/{1}/version.json', github.repository_owner, github.event.repository.name)) || '' }}
+      STABLE: ${{ github.ref_name == github.event.repository.default_branch || github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
+
       - name: Version (major.minor from package.json + run number)
         id: v
         run: |
           MM=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
           echo "name=$MM.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
           echo "code=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: App settings
+        env:
+          V_URL: ${{ vars.SUPABASE_URL }}
+          V_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          V_UPD: ${{ vars.UPDATE_URL }}
+        run: |
+          # Repository variables override .env.production only when they are set.
+          [ -n "$V_URL" ] && echo "VITE_SUPABASE_URL=${V_URL%/rest/v1*}" >> "$GITHUB_ENV"
+          [ -n "$V_KEY" ] && echo "VITE_SUPABASE_ANON_KEY=$V_KEY" >> "$GITHUB_ENV"
+          [ -n "$V_UPD" ] && echo "VITE_UPDATE_URL=$V_UPD" >> "$GITHUB_ENV"
+          SB_URL="${V_URL:-$(grep '^VITE_SUPABASE_URL=' .env.production | cut -d= -f2-)}"
+          SB_KEY="${V_KEY:-$(grep '^VITE_SUPABASE_ANON_KEY=' .env.production | cut -d= -f2-)}"
+          echo "SB_URL=${SB_URL%/rest/v1*}" >> "$GITHUB_ENV"
+          echo "SB_KEY=$SB_KEY" >> "$GITHUB_ENV"
+          true
+
+      - name: Check Supabase setup (warns, never fails the build)
+        run: |
+          code=$(curl -s -o body.txt -w "%{http_code}" "$SB_URL/rest/v1/records?select=id&limit=1" -H "apikey: $SB_KEY" || echo 000)
+          echo "records table → HTTP $code: $(head -c 200 body.txt)"
+          if grep -q "PGRST205\|does not exist\|Could not find the table" body.txt; then
+            echo "::warning::Supabase table 'records' not found. Run supabase/schema.sql in Supabase → SQL Editor (see docs/SETUP.md)."
+          elif [ "$code" = "401" ] || [ "$code" = "403" ] || grep -q "permission denied" body.txt; then
+            echo "Supabase table exists and is locked to signed-in users (expected)."
+          elif [ "$code" = "200" ]; then
+            echo "Supabase reachable."
+          else
+            echo "::warning::Could not check Supabase (HTTP $code)."
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$SB_URL/storage/v1/bucket/releases" -H "apikey: $SB_KEY" || echo 000)
+          echo "releases bucket → HTTP $code"
+
       - name: Build web app
         run: npx vite build
         env:
@@ -64,6 +100,7 @@ jobs:
       - run: npx cap sync android
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 21, cache: gradle }
+
       - name: Signing key
         env:
           KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -72,7 +109,8 @@ jobs:
             echo "$KS" | base64 -d > android/app/release.jks
             echo "SIGNED=1" >> "$GITHUB_ENV"
           else
-            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret — building a debug-signed APK. Add the signing secrets so updates install over each other."
+            echo "SIGNED=0" >> "$GITHUB_ENV"
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret — this APK is debug-signed and won't install over other builds. Add the 4 signing secrets (docs/SETUP.md)."
           fi
       - name: Build APK
         working-directory: android
@@ -92,31 +130,62 @@ jobs:
             cp app/build/outputs/apk/debug/app-debug.apk ../duty-tracker.apk
           fi
           rm -f app/release.jks
-      - name: version.json
+
+      - name: Publish to the Supabase update channel (default branch)
+        id: sb
+        if: env.STABLE == 'true'
+        env:
+          SB_SECRET: ${{ secrets.SUPABASE_SECRET_KEY }}
+          VER: ${{ steps.v.outputs.name }}
         run: |
-          node -e "
-            const main = process.env.GITHUB_REF === 'refs/heads/main';
-            const base = 'https://github.com/' + process.env.GITHUB_REPOSITORY + '/releases/' + (main ? 'latest/download' : 'download/preview');
-            console.log(JSON.stringify({ version: '${{ steps.v.outputs.name }}', apk: base + '/duty-tracker.apk', notes: 'New version of Daily Duty Tracker', built: new Date().toISOString() }, null, 2));
-          " > version.json
-          cat version.json
+          if [ -z "$SB_SECRET" ]; then
+            echo "::warning::No SUPABASE_SECRET_KEY secret — skipped the in-app update channel. The APK is still on GitHub Releases."
+            exit 0
+          fi
+          if [ "$SIGNED" != "1" ]; then
+            echo "::warning::Not publishing a debug-signed APK to phones. Add the signing secrets first."
+            exit 0
+          fi
+          up() { # file, object name, content type
+            for auth in no yes; do
+              extra=(); [ "$auth" = yes ] && extra=(-H "Authorization: Bearer $SB_SECRET")
+              code=$(curl -s -o resp.txt -w "%{http_code}" -X POST "$SB_URL/storage/v1/object/releases/$2" \
+                -H "apikey: $SB_SECRET" "${extra[@]}" -H "x-upsert: true" -H "cache-control: max-age=60" \
+                -H "Content-Type: $3" --data-binary "@$1")
+              if [ "$code" = "200" ]; then echo "uploaded $2"; return 0; fi
+            done
+            echo "::error::Upload of $2 failed (HTTP $code): $(head -c 300 resp.txt)"; return 1
+          }
+          export BASE="$SB_URL/storage/v1/object/public/releases"
+          up duty-tracker.apk "duty-tracker-$VER.apk" application/vnd.android.package-archive
+          up duty-tracker.apk "duty-tracker-latest.apk" application/vnd.android.package-archive
+          node -e "console.log(JSON.stringify({ version: process.env.VER, apk: process.env.BASE + '/duty-tracker-' + process.env.VER + '.apk', notes: 'New version of Daily Duty Tracker', built: new Date().toISOString() }, null, 2))" > version.json
+          up version.json version.json application/json
+          echo "published=1" >> "$GITHUB_OUTPUT"
+          echo "latest=$BASE/duty-tracker-latest.apk" >> "$GITHUB_OUTPUT"
+      - name: version.json (for the release page)
+        if: steps.sb.outputs.published != '1'
+        run: |
+          node -e "console.log(JSON.stringify({ version: '${{ steps.v.outputs.name }}', apk: 'https://github.com/${{ github.repository }}/releases', built: new Date().toISOString() }, null, 2))" > version.json
+
       - uses: actions/upload-artifact@v4
         with:
           name: duty-tracker-${{ steps.v.outputs.name }}
           path: |
             duty-tracker.apk
             version.json
-      - name: Publish release (main)
-        if: github.ref == 'refs/heads/main'
+
+      - name: GitHub Release (default branch)
+        if: env.STABLE == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "v${{ steps.v.outputs.name }}" duty-tracker.apk version.json \
             --target "${{ github.sha }}" --latest \
             --title "Duty Tracker ${{ steps.v.outputs.name }}" \
-            --notes "Install: download duty-tracker.apk on your Android phone and open it. Signed: ${SIGNED:-0}."
-      - name: Publish preview (other branches)
-        if: github.ref != 'refs/heads/main'
+            --notes "Install: download duty-tracker.apk on your Android phone and open it. Signed: $SIGNED."
+      - name: Preview release (other branches)
+        if: env.STABLE != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -124,24 +193,14 @@ jobs:
           gh release create preview duty-tracker.apk version.json \
             --target "${{ github.sha }}" --prerelease \
             --title "Preview ${{ steps.v.outputs.name }} (${{ github.ref_name }})" \
-            --notes "Test build from branch ${{ github.ref_name }}. Signed: ${SIGNED:-0}."
-      - name: Prepare web version for GitHub Pages
-        if: github.ref == 'refs/heads/main' && vars.PAGES_ENABLED == 'true'
-        run: cp version.json dist/version.json
-      - if: github.ref == 'refs/heads/main' && vars.PAGES_ENABLED == 'true'
-        uses: actions/upload-pages-artifact@v3
-        with: { path: dist }
+            --notes "Test build from branch ${{ github.ref_name }}. Signed: $SIGNED."
 
-  pages:
-    if: github.ref == 'refs/heads/main' && vars.PAGES_ENABLED == 'true'
-    needs: android
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - id: deploy
-        uses: actions/deploy-pages@v4
+      - name: Summary
+        run: |
+          {
+            echo "### Duty Tracker ${{ steps.v.outputs.name }}"
+            echo "- Signed: $SIGNED"
+            [ "$STABLE" = "true" ] && echo "- GitHub Release: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.v.outputs.name }}" || echo "- Preview: https://github.com/${{ github.repository }}/releases/tag/preview"
+            [ -n "${{ steps.sb.outputs.latest }}" ] && echo "- Direct download (no login): ${{ steps.sb.outputs.latest }}"
+            true
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -16,7 +16,8 @@ A mobile app that replaces the printed Excel duty sheet (`Duty_Tracker_2026.xlsx
 | `supabase/schema.sql` | Database table, row-level security, newest-edit-wins trigger |
 | `tests/unit/` | Sync engine tests: `npm test` |
 | `tests/e2e/` | Built app vs. a fake Supabase (109 checks): `npm run e2e` |
-| `.github/workflows/android.yml` | Tests → APK → GitHub Release on every push |
+| `.github/workflows/android.yml` | Update pipeline: tests → signed APK → GitHub Release + Supabase `releases` bucket → in-app update banner |
+| `.env.production` | Public Supabase settings (project URL + publishable key) |
 
 ## Stack
 Vite + vanilla JS, Capacitor for the Android APK, and Supabase (Postgres + email-code sign-in + row-level security). Data is saved on the phone first and syncs when online. GitHub Actions builds the APK and the web version.

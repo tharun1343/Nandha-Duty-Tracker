@@ -59,3 +59,15 @@ create policy "Update own records" on public.records
 
 revoke all on public.records from anon;
 grant select, insert, update on public.records to authenticated;
+
+-- App updates: a public "releases" bucket that holds duty-tracker-<version>.apk and version.json.
+-- Anyone can download from it (that is how phones fetch updates); only the CI pipeline,
+-- using the secret key stored in GitHub Secrets, can upload. No upload policy is created on purpose.
+do $$
+begin
+  if exists (select 1 from information_schema.schemata where schema_name = 'storage') then
+    insert into storage.buckets (id, name, public, file_size_limit)
+    values ('releases', 'releases', true, 52428800)
+    on conflict (id) do update set public = true;
+  end if;
+end $$;
