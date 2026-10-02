@@ -191,6 +191,19 @@ jobs:
             --target "${{ github.sha }}" --latest \
             --title "Duty Tracker ${{ steps.v.outputs.name }}" \
             --notes "Install: download duty-tracker.apk on your Android phone and open it. Signed: $SIGNED."
+      - name: Latest APK branch (default branch)
+        if: env.STABLE == 'true'
+        # Keeps the newest APK on a one-commit branch "apk-latest" (old copies are replaced),
+        # so it can be fetched with git even while the repository is private.
+        run: |
+          mkdir apkbr && cp duty-tracker.apk version.json apkbr/
+          cd apkbr
+          printf '# Latest Duty Tracker APK\n\nVersion ${{ steps.v.outputs.name }} (signed: %s). Built from ${{ github.sha }}.\n' "$SIGNED" > README.md
+          git init -q -b apk-latest
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add . && git commit -q -m "Duty Tracker ${{ steps.v.outputs.name }}"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" apk-latest
       - name: Preview release (other branches)
         if: env.STABLE != 'true'
         env:
