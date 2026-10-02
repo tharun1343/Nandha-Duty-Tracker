@@ -1,0 +1,9 @@
+{
+  "appId": "com.nandha.dutytracker",
+  "appName": "Duty Tracker",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}

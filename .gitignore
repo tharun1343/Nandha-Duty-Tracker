@@ -1,5 +1,12 @@
 node_modules/
+dist/
+dist-e2e/
 prototype/tests/shots/
+tests/e2e/shots/
 .env
+.env.local
+.env.*.local
 *.keystore
 *.jks
+android/app/release.jks
+android/keystore.properties

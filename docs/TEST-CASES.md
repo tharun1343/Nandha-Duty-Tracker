@@ -2,6 +2,10 @@
 
 Living document. Every feature or bug fix adds cases here.
 
+Two test suites:
+- `prototype/tests/prototype.e2e.js` checks the clickable prototype.
+- `tests/` checks the real app. It has 6 unit tests for the sync engine (`npm test`) and an end-to-end run of the built app against a fake Supabase (`npm run e2e`, 109 checks). Both run in GitHub Actions on every push.
+
 **Status column**
 - **Pass (auto)**: checked by `prototype/tests/prototype.e2e.js` at 360 × 780 px (Playwright).
 - **Pass (visual)**: checked by eye on screenshots, in light and dark themes.
@@ -152,6 +156,39 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 | SEC-06 | Auth | Account enumeration | Sign in with unknown email | Same "Code sent" message as a known email | Medium | Build |
 
 ---
+
+## Real app: sync, sign-in, updates (end-to-end against a fake Supabase)
+
+| ID | Area | Scenario | Steps | Expected result | Priority | Status |
+|---|---|---|---|---|---|---|
+| TC-55 | Auth | Code email requested | Enter email → Send code | One request to Supabase `/auth/v1/otp` | High | Pass (auto) |
+| TC-56 | Auth | New phone, existing account | Sign in on a fresh phone | Account data downloads first; Home opens with the existing name and entries (no onboarding) | High | Pass (auto) |
+| TC-07 | Auth | Account without a name | Sign in to an account with data but no name | Data downloads, then the name step appears | High | Pass (auto) |
+| TC-47b | Sync | Offline entry uploads | Add an entry offline → reconnect | Entry stored on the server | High | Pass (auto) |
+| TC-81 | Sync | Second phone | Sign in to the same account on another phone | Same entries, places and profile | High | Pass (auto) |
+| TC-81b | Sync | Edit on phone B | Edit a day on B, sync A | A shows B's (newer) edit | High | Pass (auto) |
+| TC-81c | Sync | Delete on phone A | Delete a day on A, sync B | Day removed on B (tombstone) | High | Pass (auto) |
+| TC-88 | Sync | Server error | Server returns 500 | Red dot "Sync failed", change kept; next sync succeeds | High | Pass (auto) |
+| TC-57 | Auth | Log out with unsynced change, sign in again | Offline change → log out → sign in | Change kept on the phone and uploaded after sign-in | High | Pass (auto) |
+| TC-89 | Updates | New version | `version.json` shows a newer minor version | Home banner with **Update now / Later** | High | Pass (auto) |
+| TC-90 | Updates | Later | Tap Later | Banner hidden for 24 h for that version | Medium | Pass (auto) |
+| TC-91 | Updates | Major version | `version.json` shows a newer major version | Full-screen "Update required" | High | Pass (auto) |
+| U-01…06 | Sync engine | Unit tests | `npm test` | First sync up/down; week offline then upload; tombstones; two-phone conflicts (newest wins); first sign-in keeps newer local entries but never overwrites the account with blank defaults; field order and settings round-trip | High | Pass (auto) |
+| SEC-03 | Data | Row-level security | Ran `supabase/schema.sql` on PostgreSQL 16 with Supabase-style roles | User B sees 0 of A's rows and can't update them; A can't insert rows for B; hard delete denied; anon denied; older edit ignored; schema re-runnable | High | Pass (local PostgreSQL); recheck on the real project after setup |
+| SEC-04 | Secrets | Keys in repo | Search repo | Only public config via GitHub variables; signing key only in GitHub Secrets; `.env`, `*.jks` git-ignored | High | Pass (visual) |
+| SEC-07 | Web | Content-Security-Policy | Built app | Scripts, styles, fonts and images from the app only; network only to the Supabase project and the update URL; no CSP errors during the e2e run | High | Pass (auto) |
+
+## Needs a real phone (APK) — not yet run
+| ID | Area | Scenario | Expected result |
+|---|---|---|---|
+| APK-01 | Install | Install `duty-tracker.apk` | Installs; icon "Duty Tracker"; opens in portrait only |
+| APK-02 | Back button | Android back with a sheet open → again → again | Closes the sheet, then goes to Home, then exits |
+| APK-03 | Export | Download PDF / Excel / CSV | Android share sheet opens (Save to Files / Drive / WhatsApp); the file opens correctly |
+| APK-04 | Reminder | Settings → Reminder on, time 8:00 PM | Notification asks permission; reminder appears only on duty days without an entry; tapping it opens Add entry for that day |
+| APK-05 | Update | Install a newer build over the old one (signed) | Installs over it; entries kept |
+| APK-06 | Real Supabase | Sign in with your real email | Code email arrives (template contains the code); entries sync to the Supabase table |
+
+Some phone brands stop background work to save battery, which can delay reminder notifications. If that happens, set the app's battery setting to "Unrestricted".
 
 ## Not testable in the prototype
 - Real email codes, real cloud sync, two-device conflicts (needs Supabase).
