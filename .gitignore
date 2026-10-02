@@ -1,0 +1,5 @@
+node_modules/
+prototype/tests/shots/
+.env
+*.keystore
+*.jks
