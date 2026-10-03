@@ -63,6 +63,7 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
 
   // ---- Entry: validation
   await click('#fab');
+  ok('TC-103 form says "Bus No." and offers 4 statuses incl. No duty', (await page.textContent('label[for=no-m]')).trim() === 'Bus No.' && (await page.locator('.status3 .stbtn').count()) === 4 && (await page.textContent('.status3')).includes('No duty'));
   ok('TC-11 FAB opens Add entry', (await page.textContent('.layer .sheet-head h2')).includes('Add entry'));
   await shot('04-add-entry');
   await click('[data-act=saveEntry]');
@@ -172,7 +173,7 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   ok('TC-37b CSV file downloaded', fs.statSync(csvFile).size > 200, path.basename(csvFile));
   await shot('14-export-csv');
   const csv = await page.evaluate(() => buildCSV());
-  ok('TC-37 CSV header + rows', csv.includes('Morning Duty') && csv.split('\r\n').length >= 29);
+  ok('TC-37 CSV header + rows', csv.includes('Morning Bus No.') && csv.split('\r\n').length >= 29);
   await page.evaluate(() => { S.entries[todayIso()] = { date: todayIso(), status:'duty', m:{no:'1',place:null,text:'=HYPERLINK("x")'}, e:{no:'',place:null,text:''}, amt:{}, note:'+cmd', updatedAt:0 }; });
   const csv2 = await page.evaluate(() => buildCSV());
   ok('SEC-01 CSV formula injection neutralised', csv2.includes(`"'=HYPERLINK(""x"")"`) && csv2.includes("'+cmd"));
@@ -299,9 +300,12 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   ok('TC-57 sign in again → unsynced change kept and uploaded', await page.evaluate(() => S.profile.phone === '9876500000') && srv.rowsFor('demo@example.com').some(r => r.kind === 'profile' && r.data.phone === '9876500000'));
   // Update banner (minor) and blocking screen (major)
   await page.click('.tab[data-tab=settings]'); await page.evaluate(() => checkUpdate(true)); await page.waitForTimeout(500);
-  ok('TC-99 nothing published yet → calm message, no error', (await page.textContent('#upd-set')).includes('No published update found') && await page.isVisible('#upd-set [data-act=checkUpdate]'));
+  ok('TC-99 no update → Settings shows only "Check for updates" (no update box)', await page.isVisible('#upd-check') && !(await page.isVisible('#upd-set')));
   await page.click('.tab[data-tab=home]');
   UPDATE.version = '1.0.999'; await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); }); await page.click('.tab[data-tab=settings]'); await page.click('[data-act=checkUpdate]'); await page.waitForTimeout(600);
+  await page.click('.tab[data-tab=home]'); await page.waitForTimeout(300);
+  await page.click('.tab[data-tab=settings]'); await page.waitForTimeout(300);
+  ok('TC-89b update available → update box appears in Settings', await page.isVisible('#upd-set [data-act=updateNow]') && !(await page.isVisible('#upd-check')));
   await page.click('.tab[data-tab=home]'); await page.waitForTimeout(300);
   ok('TC-89 update available → banner with Update now / Later', (await page.textContent('#v-home')).includes('Version 1.0.999 is available') && await page.isVisible('[data-act=updateLater]'));
   await shot('25-update-banner');
@@ -355,6 +359,18 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   ok('TC-09 onboarding → home', await p3.isVisible('#v-home.active'));
   const c3 = async sel => { await p3.click(sel); await p3.waitForTimeout(350); };
   const toast3 = async () => (await p3.textContent('#toasts')) || '';
+  // TC-102 No duty
+  await c3('[data-act=quick][data-status=noduty]');
+  ok('TC-102 quick "No duty" marks today', await p3.evaluate(() => S.entries[todayIso()].status === 'noduty') && (await toast3()).includes('marked as no duty'));
+  await c3('.toast .undo');
+  await p3.evaluate(() => openEntry(addDays(todayIso(), -1) in S.entries ? addDays(todayIso(), -40) : addDays(todayIso(), -1))); await p3.waitForTimeout(350);
+  await c3('[data-act=setStatus][data-v=noduty]');
+  ok('TC-102b No duty hides bus numbers and amounts', !(await p3.isVisible('#no-m')) && !(await p3.isVisible('#amt-fare')));
+  await c3('[data-act=saveEntry]');
+  { const nd = await p3.evaluate(() => Object.values(S.entries).filter(e => e.status === 'noduty').length);
+    await c3('.tab[data-tab=records]');
+    ok('TC-102c No duty saved, counted on its own, and filterable in Records', nd >= 1 && (await p3.textContent('#v-records .chips')).includes('No duty')); 
+    await c3('.tab[data-tab=home]'); }
   // TC-61 quick holiday
   await c3('[data-act=quick][data-status=holiday]');
   ok('TC-61 quick holiday + undo toast', (await toast3()).includes('marked as holiday') && await p3.isVisible('.toast .undo'));
@@ -363,7 +379,7 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   await c3('#fab');
   await c3('#shift-m [data-act=pickPlace]'); await c3('.pk-list .pk-item:not(.other)');
   await c3('[data-act=saveEntry]');
-  ok('TC-59 place without duty no → error', (await p3.textContent('.field[data-k="m.no"] .msg')).includes('duty number'));
+  ok('TC-59 place without duty no → error', (await p3.textContent('.field[data-k="m.no"] .msg')).includes('bus number'));
   await p3.fill('#no-m', '8752'); await p3.fill('#amt-fare', '0'); await c3('[data-act=saveEntry]');
   ok('TC-60 zero amount → error', (await p3.textContent('.field[data-k="amt.fare"] .msg')).includes('above ₹0'));
   await p3.fill('#amt-fare', '75');

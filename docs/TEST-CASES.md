@@ -106,6 +106,9 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 | TC-99 | Updates | Channel not published yet | Settings → Check for updates | "Automatic updates aren't switched on yet" + **Download latest** (opens GitHub Releases); no error | High | Pass (auto) |
 | TC-100 | Web | Offline | Open the web version, then go offline and reload | App opens from its offline cache with this browser's entries | High | Pass (auto) |
 | TC-101 | Web | In-place update | New version published → Update now | Reloads the same window into the new version; no new tab; entries kept | High | Pass (auto) |
+| TC-102 | Entry | No duty | Status → No duty (or Home → No duty) | Saved as "No duty": no bus numbers or amounts; own count on Home; Records/Export filter; grey in Excel; left out of the PDF sheet | High | Pass (auto) |
+| TC-103 | Entry | Wording | Add entry | Field label "Bus No." (also in Excel/CSV headers and the PDF column) | Medium | Pass (auto) |
+| TC-89b | Updates | Settings | No update vs update available | Settings shows only "Check for updates" until an update exists; then an update box with Update now | High | Pass (auto) |
 | TC-84 | Export | No legend | Export PDF / Excel | No legend line in either file | High | Pass (auto) |
 | TC-85 | Export | Print area | Export a month as PDF | A4 **landscape**; sheet inside the top-left 60% of the width and height (505 × 357 pt); rest blank for cutting; more than 34 duty rows continue on a second page (a day is never split) | High | Pass (auto) |
 | TC-73 | Export | Excel | Download Excel | Real .xlsx: same colours, separate place columns, numbers as numbers, live `COUNTIF`/`COUNTA`/`SUM` totals like the original sheet; blank cells left empty | High | Pass (auto) |

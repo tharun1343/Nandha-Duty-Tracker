@@ -68,16 +68,21 @@ Fixed download link, which always gives the newest version:
 
 **Address:** https://tharun1343.github.io/Nandha-Duty-Tracker/
 
-GitHub Pages hosts it for free, but only for **public** repositories. The repository holds no secrets: the Supabase key in it is the public one, and row-level security keeps each account's data private. So making it public is safe. To switch it on (you):
-1. **Settings → General → Danger Zone → Change repository visibility → Public**
-2. **Settings → Pages → Build and deployment → Source: GitHub Actions**
-3. **Actions → Build app → Run workflow** (or push any change). The address above then works.
+The repository is public, so GitHub Pages can host it for free. The repository holds no secrets: the Supabase key in it is the public one, and row-level security keeps each account's data private. One setting switches it on (you):
+1. **Settings → Pages → Build and deployment → Source: GitHub Actions**
+2. **Actions → Build app → Run workflow** (or push any change). The address above then works, and every later build updates it automatically.
 
-Making the repository public also lets the Android app download updates itself from GitHub Releases, so `SUPABASE_SECRET_KEY` becomes optional.
+Because the repository is public, the Android app downloads its updates straight from GitHub Releases, so `SUPABASE_SECRET_KEY` is optional.
 
 **Use it like an app on Windows:** open the address in Edge or Chrome, sign in with your email code, then use **⋯ → Apps → Install Daily Duty Tracker**. It gets its own window and Start-menu icon, works offline, and syncs with the phone through your account.
 
 **Updates on the web:** when a new version is published, the app shows **Update now**. That switches to the new version and reloads in the same window, with no new tab and nothing lost.
+
+## Why an update sometimes fails to install ("App not installed")
+
+Android installs an update only if it is signed with the **same key** as the app already on the phone. Until the four `ANDROID_…` signing secrets are added, every build is signed with a new temporary key, so Android refuses the update and the old app has to be uninstalled. After the secrets are added:
+1. Uninstall the app one last time and install the next build. Entries that already synced come back when you sign in.
+2. From then on, every update installs over the previous one from **Update now** inside the app, and your data stays.
 
 ## 3. Install on your phone
 

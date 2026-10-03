@@ -39,7 +39,7 @@ const inr = n => { n = Math.round((+n || 0) * 100) / 100; const [i, d] = Math.ab
 const ic = (name, sz = 24, cls = '') => ICONS[name] ? `<img class="i3d ${cls}" src="${ICONS[name]}" width="${sz}" height="${sz}" alt="">` : `<span class="letter" style="width:${sz}px;height:${sz}px">${esc((name || '?')[0].toUpperCase())}</span>`;
 const letterOr = (icon, name, sz = 28) => icon ? ic(icon, sz) : `<span class="letter" style="width:${sz}px;height:${sz}px">${esc((name || '?').trim()[0]?.toUpperCase() || '?')}</span>`;
 const plural = (n, w, pw) => `${n} ${n === 1 ? w : (pw || w + 's')}`;
-const STATUS = { duty: { label: 'On duty', icon: 'bus' }, holiday: { label: 'Holiday', icon: 'beach' }, leave: { label: 'Leave', icon: 'palm' } };
+const STATUS = { duty: { label: 'On duty', icon: 'bus' }, holiday: { label: 'Holiday', icon: 'beach' }, leave: { label: 'Leave', icon: 'palm' }, noduty: { label: 'No duty', icon: 'house' } };
 
 /* ---------------- Storage: one copy per account on this phone ("local" before sign-in) ---------------- */
 const LS = {
@@ -106,7 +106,7 @@ const enabledFields = () => S.fields.filter(f => f.on);
 const entryTotal = e => enabledFields().reduce((s, f) => s + (+e.amt?.[f.id] || 0), 0);
 const isOff = s => parse(s).getDay() === S.settings.weeklyOff;
 function totalsFor(dates) {
-  const t = { duty: 0, holiday: 0, leave: 0, m: 0, e: 0, entries: 0, amt: {} };
+  const t = { duty: 0, holiday: 0, leave: 0, noduty: 0, m: 0, e: 0, entries: 0, amt: {} };
   S.fields.forEach(f => t.amt[f.id] = 0);
   dates.forEach(d => { const e = S.entries[d]; if (!e) return; t.entries++; t[e.status]++; if (e.status === 'duty') { if (e.m.no) t.m++; if (e.e.no) t.e++; } for (const k in e.amt) t.amt[k] = (t.amt[k] || 0) + (+e.amt[k] || 0); });
   return t;
@@ -282,7 +282,7 @@ function openPicker({ title, groups, value, search = true, extra = [], onPick, p
 /* Calendar date picker */
 function openCalendar({ value, onPick, title = 'Pick a date', max }) {
   let view = monthKey(value || todayIso());
-  const el = openLayer(`<div class="sheet-card">${sheetHead(esc(title))}<div class="cal-head"><button class="iconbtn" id="cal-p" aria-label="Previous month">‹</button><b id="cal-t"></b><button class="iconbtn" id="cal-n" aria-label="Next month">›</button></div><div class="cal" id="cal-g"></div><div class="cal-legend"><span><i style="background:var(--duty-fg)"></i>On duty</span><span><i style="background:var(--hol-fg)"></i>Holiday</span><span><i style="background:var(--leave-fg)"></i>Leave</span></div><div class="sheet-foot"><button class="btn soft block" id="cal-today">Today · ${esc(fmtDW(todayIso()))}</button></div></div>`);
+  const el = openLayer(`<div class="sheet-card">${sheetHead(esc(title))}<div class="cal-head"><button class="iconbtn" id="cal-p" aria-label="Previous month">‹</button><b id="cal-t"></b><button class="iconbtn" id="cal-n" aria-label="Next month">›</button></div><div class="cal" id="cal-g"></div><div class="cal-legend"><span><i style="background:var(--duty-fg)"></i>On duty</span><span><i style="background:var(--hol-fg)"></i>Holiday</span><span><i style="background:var(--leave-fg)"></i>Leave</span><span><i style="background:var(--fg-3)"></i>No duty</span></div><div class="sheet-foot"><button class="btn soft block" id="cal-today">Today · ${esc(fmtDW(todayIso()))}</button></div></div>`);
   const draw = () => {
     const [y, m] = view.split('-').map(Number); el.querySelector('#cal-t').textContent = `${MONL[m - 1]} ${y}`;
     const first = new Date(y, m - 1, 1).getDay(); let h = WD.map(w => `<div class="wd">${w[0]}${w[1]}</div>`).join('');
@@ -345,9 +345,9 @@ function renderHome() {
   let today = `<div class="today"><div class="d1">Today</div><div class="d2">${esc(fmtDW(t))}</div>`;
   if (!e) {
     const off = isOff(t); const ld = lastDuty();
-    today += `<div class="empty">${ic(off ? 'beach' : 'bus', 58)}<p>${off ? `It's your weekly off (${WDL[S.settings.weeklyOff]}). Mark it as a holiday, or add a duty if you worked.` : 'No entry for today yet. Add the duty numbers and fare when you finish.'}</p></div>
+    today += `<div class="empty">${ic(off ? 'beach' : 'bus', 58)}<p>${off ? `It's your weekly off (${WDL[S.settings.weeklyOff]}). Mark it as a holiday, or add a duty if you worked.` : 'No entry for today yet. Add the bus numbers and fare when you finish.'}</p></div>
       <div class="actions"><button class="btn primary" data-act="addFor" data-date="${t}">${ic('pencil', 20)}Add today's entry</button></div>
-      <div class="actions" style="margin-top:8px">${!off && ld ? `<button class="btn soft sm" data-act="repeatLast">↻ Repeat last duty</button>` : ''}<button class="btn ghost sm" data-act="quick" data-status="holiday">${ic('beach', 18)}Holiday</button><button class="btn ghost sm" data-act="quick" data-status="leave">${ic('palm', 18)}Leave</button></div>`;
+      <div class="actions" style="margin-top:8px">${!off && ld ? `<button class="btn soft sm" data-act="repeatLast">↻ Repeat last duty</button>` : ''}<button class="btn ghost sm" data-act="quick" data-status="holiday">${ic('beach', 18)}Holiday</button><button class="btn ghost sm" data-act="quick" data-status="leave">${ic('palm', 18)}Leave</button><button class="btn ghost sm" data-act="quick" data-status="noduty">${ic('house', 18)}No duty</button></div>`;
   } else if (e.status !== 'duty') {
     today += `<div class="empty">${ic(STATUS[e.status].icon, 58)}<p>Marked as <b>${STATUS[e.status].label.toLowerCase()}</b>${e.note ? ` · ${esc(e.note)}` : ''}.</p></div><div class="actions"><button class="btn ghost" data-act="editEntry" data-date="${t}">${ic('pencil', 20)}Edit entry</button></div>`;
   } else {
@@ -371,7 +371,7 @@ function renderHome() {
     <div class="seg" role="tablist" aria-label="Summary period"><button class="${life ? '' : 'on'}" data-act="homeScope" data-v="month" role="tab" aria-selected="${!life}">This month</button><button class="${life ? 'on' : ''}" data-act="homeScope" data-v="life" role="tab" aria-selected="${life}">Lifetime</button></div>
     <div class="stats">
       <div class="stat">${ic('bus', 34)}<div><div class="v num">${tot.duty}</div><div class="l">On-duty days</div></div></div>
-      <div class="stat">${ic('beach', 34)}<div><div class="v num">${tot.holiday + tot.leave}</div><div class="l">Holiday / leave</div></div></div>
+      <div class="stat">${ic('beach', 34)}<div><div class="v num">${tot.holiday + tot.leave + tot.noduty}</div><div class="l">Holiday / leave / no duty</div></div></div>
       <div class="stat">${ic('sunrise', 34)}<div><div class="v num">${tot.m}</div><div class="l">Morning duties</div></div></div>
       <div class="stat">${ic('sunset', 34)}<div><div class="v num">${tot.e}</div><div class="l">Evening duties</div></div></div>
       ${amtTiles}
@@ -384,7 +384,7 @@ function renderHome() {
 const R = { month: monthKey(todayIso()), filter: 'all', q: '' };
 function dayMatches(d, e) {
   const f = R.filter, past = d <= todayIso();
-  if (f === 'duty' || f === 'holiday' || f === 'leave') { if (!e || e.status !== f) return false; }
+  if (f === 'duty' || f === 'holiday' || f === 'leave' || f === 'noduty') { if (!e || e.status !== f) return false; }
   if (f === 'missing' && (e || !past || d === todayIso() || isOff(d))) return false;
   if (R.q) { if (!e) return false; const q = R.q.toLowerCase(); const hay = [e.m.no, e.e.no, placeName(e.m), placeName(e.e), e.note, STATUS[e.status].label].join(' ').toLowerCase(); if (!hay.includes(q)) return false; }
   return true;
@@ -392,7 +392,7 @@ function dayMatches(d, e) {
 function renderRecords() {
   const dates = monthDates(R.month); const t = todayIso(); const flds = enabledFields();
   const tot = totalsFor(dates);
-  const cnt = { all: dates.length, duty: tot.duty, holiday: tot.holiday, leave: tot.leave, missing: dates.filter(d => !S.entries[d] && d < t && !isOff(d)).length };
+  const cnt = { all: dates.length, duty: tot.duty, holiday: tot.holiday, leave: tot.leave, noduty: tot.noduty, missing: dates.filter(d => !S.entries[d] && d < t && !isOff(d)).length };
   const rows = dates.filter(d => dayMatches(d, S.entries[d]));
   const rowHtml = rows.map(d => {
     const e = S.entries[d], dt = parse(d), fut = d > t, off = isOff(d);
@@ -412,7 +412,7 @@ function renderRecords() {
     const amt = e && e.status === 'duty' && entryTotal(e) ? `<div class="damt">${inr(entryTotal(e))}${flds.length > 1 ? '<small>total</small>' : ''}</div>` : '';
     return `<button class="${cls}" data-act="addFor" data-date="${d}"><div class="dbadge"><b>${pad(dt.getDate())}</b><span>${WD[dt.getDay()]}</span></div><div class="dmain">${body}</div>${amt}</button>`;
   }).join('');
-  const F = [['all', 'All'], ['duty', 'On duty'], ['holiday', 'Holiday'], ['leave', 'Leave'], ['missing', 'No entry']];
+  const F = [['all', 'All'], ['duty', 'On duty'], ['holiday', 'Holiday'], ['leave', 'Leave'], ['noduty', 'No duty'], ['missing', 'No entry']];
   $('#v-records').innerHTML = `
     <div class="monthbar"><button class="iconbtn" data-act="mPrev" aria-label="Previous month">‹</button><button class="mname" data-act="mPick">${ic('calendar', 22)}${MONL[+R.month.slice(5) - 1]} ${R.month.slice(0, 4)} <span class="muted">▾</span></button><button class="iconbtn" data-act="mNext" aria-label="Next month">›</button></div>
     <div class="searchbox">${ic('pin', 20)}<input id="rec-q" placeholder="Search duty no., place or note" value="${esc(R.q)}" maxlength="40" autocomplete="off">${R.q ? '<button class="iconbtn" data-act="clearQ" aria-label="Clear search">✕</button>' : ''}</div>
@@ -459,7 +459,7 @@ function shiftHtml(s, label, icon) {
   const rec = recentDuty(s);
   return `<div class="shift" id="shift-${s}"><div class="shift-h">${ic(icon, 24)}<span class="grow">${label}</span>${(x.no || x.place || x.other) ? `<button class="linkbtn small" data-act="clearShift" data-s="${s}">Clear</button>` : ''}</div>
     <div class="grid2">
-      <div class="field ${err[s + '.no'] ? 'err' : ''}" data-k="${s}.no"><label for="no-${s}">Duty no.</label><div class="input mono"><input id="no-${s}" data-bind="${s}.no" autocapitalize="off" spellcheck="false" maxlength="12" placeholder="e.g. 88" value="${esc(x.no)}" autocomplete="off"></div><div class="msg">${esc(err[s + '.no'] || '')}</div></div>
+      <div class="field ${err[s + '.no'] ? 'err' : ''}" data-k="${s}.no"><label for="no-${s}">Bus No.</label><div class="input mono"><input id="no-${s}" data-bind="${s}.no" autocapitalize="off" spellcheck="false" maxlength="12" placeholder="e.g. 88" value="${esc(x.no)}" autocomplete="off"></div><div class="msg">${esc(err[s + '.no'] || '')}</div></div>
       <div class="field" data-k="${s}.place"><label>Place</label><button class="input" data-act="pickPlace" data-s="${s}">${ic('pin', 18)}<span class="val ${plVal ? '' : 'ph'}">${esc(plVal || 'Select')}</span><span class="caret">▾</span></button></div>
     </div>
     ${x.other ? `<div class="field ${err[s + '.text'] ? 'err' : ''}" data-k="${s}.text"><label for="tx-${s}">Place name <span class="req">*</span></label><div class="input"><input id="tx-${s}" data-bind="${s}.text" maxlength="40" placeholder="Type the place name" value="${esc(x.text)}" autocomplete="off"></div><div class="msg">${esc(err[s + '.text'] || '')}</div>
@@ -531,7 +531,7 @@ function validateEntry() {
       const x = F[s];
       if (x.no && !/^[A-Za-z0-9 [\]()/.-]{1,12}$/.test(x.no)) err[s + '.no'] = 'Use letters, digits and [ ] ( ) / . - only (up to 12)';
       const hasPlace = x.place || (x.other && x.text.trim());
-      if (hasPlace && !x.no) err[s + '.no'] = 'Enter the duty number';
+      if (hasPlace && !x.no) err[s + '.no'] = 'Enter the bus number';
       if (x.other) { const tx = x.text.trim(); if (!tx) err[s + '.text'] = 'Type the place name, or pick one from the list'; else if (tx.length < 2) err[s + '.text'] = 'Use at least 2 letters'; }
       if (x.no) any = true;
     });
@@ -544,7 +544,7 @@ function validateEntry() {
     });
     const used = x => x.no || x.place || (x.other && x.text.trim());
     if ((F.m.half && F.m.no && used(F.e)) || (F.e.half && F.e.no && used(F.m)) || (F.m.half && F.e.half)) err.block = 'A half day has only one duty. Remove the other duty or untick “Half day”.';
-    if (!any && !Object.keys(err).some(k => k !== 'date')) err.block = 'Add a morning or evening duty number, or an amount.';
+    if (!any && !Object.keys(err).some(k => k !== 'date')) err.block = 'Add a morning or evening bus number, or an amount.';
   }
   if (F.note.length > 200) err.note = 'Keep the note under 200 characters';
   return err;
@@ -654,14 +654,14 @@ function renderExport() {
     ['last30', 'Last 30 days', `${fmtD(addDays(todayIso(), -29)).slice(0, 6)} – ${fmtD(todayIso()).slice(0, 6)}`, 'hourglass'],
     ['custom', 'Custom range', `${fmtD(X.from).slice(0, 6)} – ${fmtD(X.to).slice(0, 6)}`, 'map']
   ];
-  const prev = rows.slice(0, 6).map(({ d, e }, i) => `<tr class="${e?.status === 'holiday' ? 'h' : e?.status === 'leave' ? 'l' : ''}"><td>${esc(fmtD(d))}</td><td>${WD[parse(d).getDay()]}</td><td>${e ? STATUS[e.status].label : '—'}</td><td class="mono">${esc(e?.m.no || '')}</td><td class="mono">${esc(e?.e.no || '')}</td>${flds.map(f => `<td>${e?.amt[f.id] ? inr(e.amt[f.id]) : ''}</td>`).join('')}</tr>`).join('');
+  const prev = rows.slice(0, 6).map(({ d, e }, i) => `<tr class="${e?.status === 'holiday' ? 'h' : e?.status === 'leave' ? 'l' : e?.status === 'noduty' ? 'nd' : ''}"><td>${esc(fmtD(d))}</td><td>${WD[parse(d).getDay()]}</td><td>${e ? STATUS[e.status].label : '—'}</td><td class="mono">${esc(e?.m.no || '')}</td><td class="mono">${esc(e?.e.no || '')}</td>${flds.map(f => `<td>${e?.amt[f.id] ? inr(e.amt[f.id]) : ''}</td>`).join('')}</tr>`).join('');
   $('#v-export').innerHTML = `
     <div class="h-sec"><h3>Period</h3><button class="info" data-act="info" data-info="The export uses the same layout as your printed Excel sheet: one row per day, Sundays shaded pink, and totals at the bottom.">i</button></div>
     <div class="periods">${P.map(([k, l, s, icn]) => `<button class="period ${X.period === k ? 'on' : ''}" data-act="xPeriod" data-v="${k}">${ic(icn, 32)}<div><b>${l}</b><span>${esc(s)}</span></div></button>`).join('')}</div>
     ${X.period === 'pick' ? `<div class="field"><label>Month</label><button class="input" data-act="xMonth">${ic('calendar', 20)}<span class="val">${esc(MONL[+X.month.slice(5) - 1] + ' ' + X.month.slice(0, 4))}</span><span class="caret">▾</span></button></div>` : ''}
     ${X.period === 'custom' ? `<div class="grid2" style="grid-template-columns:1fr 1fr"><div class="field ${X.err ? 'err' : ''}"><label>From <span class="req">*</span></label><button class="input" data-act="xFrom">${ic('calendar', 18)}<span class="val">${esc(fmtDW(X.from))}</span></button></div><div class="field ${X.err ? 'err' : ''}"><label>To <span class="req">*</span></label><button class="input" data-act="xTo">${ic('calendar', 18)}<span class="val">${esc(fmtDW(X.to))}</span></button></div></div>${X.err ? `<div class="block-err show">${esc(X.err)}</div>` : ''}` : ''}
     <div class="h-sec"><h3>Include</h3></div>
-    <div class="chips">${[['all', 'All days'], ['duty', 'On duty'], ['holiday', 'Holiday'], ['leave', 'Leave']].map(([k, l]) => `<button class="chip ${X.status === k ? 'on' : ''}" data-act="xStatus" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="chips">${[['all', 'All days'], ['duty', 'On duty'], ['holiday', 'Holiday'], ['leave', 'Leave'], ['noduty', 'No duty']].map(([k, l]) => `<button class="chip ${X.status === k ? 'on' : ''}" data-act="xStatus" data-v="${k}">${l}</button>`).join('')}</div>
     ${X.status === 'all' ? `<div class="card" style="padding:4px 14px"><div class="setrow"><div class="lbl"><div>Include days without an entry<small>Prints a full calendar like the Excel sheet</small></div></div><button class="toggle ${X.empty ? 'on' : ''}" data-act="xEmpty" role="switch" aria-checked="${X.empty}" aria-label="Include days without an entry"></button></div></div>` : ''}
     <div class="h-sec"><h3>Preview</h3><span class="muted small">${esc(r.title)}</span></div>
     <div class="card" style="display:flex;flex-direction:column;gap:12px">
@@ -677,20 +677,20 @@ function exportName(ext) { const r = exportRange(); const base = X.period === 'm
 const csvCell = v => { let s = String(v ?? ''); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 function buildCSV() {
   const { rows } = exportRows(); const flds = enabledFields();
-  const head = ['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Morning Place', 'Evening Duty', 'Evening Place', ...flds.map(f => `${f.name} (₹)`), 'Half day', 'Note'];
+  const head = ['#', 'Date', 'Day', 'Status', 'Morning Bus No.', 'Morning Place', 'Evening Bus No.', 'Evening Place', ...flds.map(f => `${f.name} (₹)`), 'Half day', 'Note'];
   const lines = [head.map(csvCell).join(',')];
   rows.forEach(({ d, e }, i) => lines.push([i + 1, fmtD(d), WDL[parse(d).getDay()], e ? STATUS[e.status].label : '', e?.m.no || '', e ? placeName(e.m) : '', e?.e.no || '', e ? placeName(e.e) : '', ...flds.map(f => e?.amt[f.id] ?? ''), halfLabel(e), e?.note || ''].map(csvCell).join(',')));
   return '﻿' + lines.join('\r\n');
 }
 /* Shared export model: one row per day, used by the on-screen preview, PDF, Excel and CSV.
    Colours follow the original Excel sheet. */
-const XL = { title: '1F4E79', head: '2E75B6', label: 'D6E4F0', labelInk: '1F4E79', value: 'DAEEF3', holiday: 'FFE4E1', holidayInk: 'C0392B', leave: 'FFF1D9', leaveInk: '92600F', grid: 'C9D6E3' };
+const XL = { noduty: 'F2F2F2', nodutyInk: '595959', title: '1F4E79', head: '2E75B6', label: 'D6E4F0', labelInk: '1F4E79', value: 'DAEEF3', holiday: 'FFE4E1', holidayInk: 'C0392B', leave: 'FFF1D9', leaveInk: '92600F', grid: 'C9D6E3' };
 function exportData() {
   const { r, rows } = exportRows(); const flds = enabledFields(); const p = S.profile;
   const list = rows.map(({ d, e }, i) => ({
     n: i + 1, date: fmtD(d), day: WDL[parse(d).getDay()],
     status: e ? STATUS[e.status].label : (isOff(d) ? 'Holiday' : ''),
-    kind: e?.status === 'holiday' || (!e && isOff(d)) ? 'h' : e?.status === 'leave' ? 'lv' : '',
+    kind: e?.status === 'holiday' || (!e && isOff(d)) ? 'h' : e?.status === 'leave' ? 'lv' : e?.status === 'noduty' ? 'nd' : '',
     mNo: e?.m.no || '', mPl: e ? placeName(e.m) : '', eNo: e?.e.no || '', ePl: e ? placeName(e.e) : '',
     amt: flds.map(f => e?.amt[f.id] ?? ''), half: halfLabel(e), note: e?.note || ''
   }));
@@ -711,7 +711,7 @@ function paperHtml() {
   return `<div class="a4"><div class="cut" aria-hidden="true"></div><div class="blk" id="blk">
     <div class="ttl">${esc(D.title)}</div>
     <table class="xinfo"><tr>${D.info.map(i => `<th>${esc(i[0])}</th>`).join('')}</tr><tr>${D.info.map(i => `<td>${esc(i[1])}</td>`).join('')}</tr></table>
-    <table class="main"><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Status</th><th>Morning Duty</th><th>Evening Duty</th>${D.flds.map(f => `<th>${esc(f.name)} (₹)</th>`).join('')}</tr></thead><tbody>${body}
+    <table class="main"><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Status</th><th>Morning Bus No.</th><th>Evening Bus No.</th>${D.flds.map(f => `<th>${esc(f.name)} (₹)</th>`).join('')}</tr></thead><tbody>${body}
     <tr class="tl"><td colspan="3" rowspan="2">TOTALS</td>${totalLabels(D).map(l => `<td>${esc(l)}</td>`).join('')}</tr>
     <tr class="tv">${totalValues(D).map(v => `<td>${esc(v)}</td>`).join('')}</tr></tbody></table>
   </div></div>`;
@@ -732,7 +732,7 @@ async function loadLibs(kind) {
 const rgb = hex => [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
 /* ---- Printed sheet (PDF) ----
    Same structure as the paper "spare" sheet: month · name · duty type, then
-   Date | Route.no | Half | place | Amount for each worked day, blank rows, and a
+   Date | Bus No. | Half | place | Amount for each worked day, blank rows, and a
    Signature / TOTAL footer. A day with a morning and an evening duty gets two rows
    with the Date and Amount cells merged and a border between the two duties.
    Drawn on a canvas so Tamil place names are shaped correctly, then placed as a
@@ -740,7 +740,7 @@ const rgb = hex => [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
 const A4L = { w: 841.89, h: 595.28, m: 14, frac: 0.6 };
 const SHEET = { purple: '#7030A0', red: '#FF0000', green: '#00B050', ink: '#000000', line: '#3A3A3A', thin: '#8A8A8A' };
 const SHEET_FONT = 'Arial, Roboto, Figtree, "Noto Sans Tamil", sans-serif';
-const SHEET_COLS = [0.12, 0.126, 0.16, 0.43, 0.164]; // Date, Route.no, Half, place, Amount (share of width)
+const SHEET_COLS = [0.12, 0.126, 0.16, 0.43, 0.164]; // Date, Bus No., Half, place, Amount (share of width)
 const SHEET_MIN_ROWS = 20, SHEET_MAX_ROWS = 34; // more duty rows than this continue on another page
 const SHEET_W = A4L.w * A4L.frac - A4L.m, SHEET_MAX_H = A4L.h * A4L.frac - A4L.m;
 function sheetData() {
@@ -798,7 +798,7 @@ function drawSheet(ctx, D, days, last, s) {
   y += h1;
   // Row 2: column titles
   const h2 = 0.9 * u;
-  text('Date', xs[0], xs[1], y, h2, 0.56 * u); text('Route.no', xs[1], xs[3], y, h2, 0.56 * u);
+  text('Date', xs[0], xs[1], y, h2, 0.56 * u); text('Bus No.', xs[1], xs[3], y, h2, 0.56 * u);
   text('place', xs[3], xs[4], y, h2, 0.56 * u); text('Amount', xs[4], xs[5], y, h2, 0.56 * u);
   [1, 3, 4].forEach(i => thick(xs[i], y, xs[i], y + h2)); thick(0, y + h2, W, y + h2);
   y += h2;
@@ -864,7 +864,7 @@ async function buildXLSX() {
   await loadLibs('xlsx');
   const D = exportData(); const wb = new window.ExcelJS.Workbook(); wb.creator = 'Daily Duty Tracker';
   const ws = wb.addWorksheet(D.r.title.slice(0, 31).replace(/[\\/?*[\]:]/g, '-'), { pageSetup: { paperSize: 9, orientation: 'portrait' } });
-  const head = ['#', 'Date', 'Day', 'Status', 'Morning Duty', 'Morning Place', 'Evening Duty', 'Evening Place', ...D.flds.map(f => `${f.name} (₹)`), 'Half day', 'Note'];
+  const head = ['#', 'Date', 'Day', 'Status', 'Morning Bus No.', 'Morning Place', 'Evening Bus No.', 'Evening Place', ...D.flds.map(f => `${f.name} (₹)`), 'Half day', 'Note'];
   const n = head.length;
   const fill = hex => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + hex } });
   const thin = { style: 'thin', color: { argb: 'FF' + XL.grid } }; const border = { top: thin, left: thin, bottom: thin, right: thin };
@@ -889,9 +889,9 @@ async function buildXLSX() {
     row.values = [x.n, x.date, x.day, txt(x.status), num(x.mNo), txt(x.mPl), num(x.eNo), txt(x.ePl), ...x.amt.map(a => a === '' ? null : +a), txt(x.half), txt(x.note)];
     for (let col = 1; col <= n; col++) {
       const c = row.getCell(col); c.border = border; c.font = font(); c.alignment = { horizontal: col === 6 || col === 8 || col === n ? 'left' : 'center', vertical: 'middle' };
-      if (x.kind) c.fill = fill(x.kind === 'h' ? XL.holiday : XL.leave);
+      if (x.kind) c.fill = fill(x.kind === 'h' ? XL.holiday : x.kind === 'nd' ? XL.noduty : XL.leave);
     }
-    if (x.kind) row.getCell(4).font = font({ bold: true, color: { argb: 'FF' + (x.kind === 'h' ? XL.holidayInk : XL.leaveInk) } });
+    if (x.kind) row.getCell(4).font = font({ bold: true, color: { argb: 'FF' + (x.kind === 'h' ? XL.holidayInk : x.kind === 'nd' ? XL.nodutyInk : XL.leaveInk) } });
   });
   // TOTALS: label row + value row with live formulas, like the original sheet
   const L = last + 1, V = last + 2, col = c => ws.getColumn(c).letter;
@@ -983,8 +983,9 @@ function renderSettings() {
     ${secHtml('look', 'palette', 'Appearance', `${({ system: 'System', light: 'Light', dark: 'Dark', darkblue: 'Dark blue' })[st.theme]} theme · ${({ s: 'Small', m: 'Medium', l: 'Large' })[st.text]} text`, lookBody)}
     ${secHtml('remind', 'bell', 'Reminder', rem.on ? `Daily at ${fmtTime(rem.time)}` : 'Off', remBody)}
     ${secHtml('sync', 'cloud', 'Sync & backup', esc(syncState().text), syncBody)}
-    <div class="card upd-set" id="upd-set"><div class="row">${ic('bell', 32)}<div class="grow"><b>App updates · version ${esc(APP_VERSION)}</b><div class="muted small" id="upd-text">${esc(updText())}</div></div></div>
-      ${updBar()}<div class="actions">${UPD.state === 'available' ? `<button class="btn primary sm" data-act="updateNow">${updLabel()}</button>` : '<button class="btn soft sm" data-act="checkUpdate">Check for updates</button>'}${native.isNative ? '<button class="btn ghost sm" data-act="downloadLatest">Download latest</button>' : ''}</div></div>
+    ${UPD.state === 'available' || UPD.state === 'manual' ? `<div class="card upd-set" id="upd-set"><div class="row">${ic('bell', 32)}<div class="grow"><b>${UPD.state === 'available' ? 'Update available' : 'New version available'}</b><div class="muted small" id="upd-text">${esc(updText())}</div></div></div>
+      ${updBar()}<div class="actions">${UPD.state === 'available' ? `<button class="btn primary sm" data-act="updateNow">${updLabel()}</button>` : '<button class="btn primary sm" data-act="downloadLatest">Download latest</button>'}</div></div>`
+      : `<button class="btn soft block" data-act="checkUpdate" id="upd-check">${ic('bell', 20)}Check for updates</button>`}
     ${signedIn ? `<button class="btn block logout" data-act="logout">${ic('lock', 20)}Log out</button>` : ''}
     <div class="ver">Daily Duty Tracker · v${esc(APP_VERSION)}</div>`;
 }
