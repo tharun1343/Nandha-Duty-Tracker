@@ -4,7 +4,7 @@ Living document. Every feature or bug fix adds cases here.
 
 Two test suites:
 - `prototype/tests/prototype.e2e.js` checks the clickable prototype.
-- `tests/` checks the real app. It has 6 unit tests for the sync engine (`npm test`) and an end-to-end run of the built app against a fake Supabase (`npm run e2e`, 109 checks). Both run in GitHub Actions on every push.
+- `tests/` checks the real app. It has 6 unit tests for the sync engine (`npm test`) and an end-to-end run of the built app against a fake Supabase (`npm run e2e`, 133 checks). Both run in GitHub Actions on every push.
 
 **Status column**
 - **Pass (auto)**: checked by `prototype/tests/prototype.e2e.js` at 360 × 780 px (Playwright).
@@ -142,6 +142,9 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 | TC-47 | Sync | Reconnect | Turn offline off | Uploads automatically → green | High | Pass (auto) |
 | TC-81 | Sync | Two phones edit same day | Edit 05-Oct on two phones | Newest edit wins; nothing silently lost | High | Build |
 | TC-82 | Sync | Airplane mode for a week | Enter 7 days offline, reconnect | All 7 upload in order | High | Build |
+| TC-120 | Backup | Back up to file | Settings → Sync & backup → Back up to file | Downloads one JSON file holding every entry, place, category, amount field and profile | High | Pass (auto) |
+| TC-121 | Backup | Restore preview | Restore from a file → pick/paste a backup | Shows what it contains (days, places, fields) and who it is from before restoring | High | Pass (auto) |
+| TC-122 | Backup | Restore merges data | Confirm restore | Backed-up entries and places are added and uploaded to the connected project; a newer local edit is kept | High | Pass (auto) |
 
 ## UI and accessibility
 

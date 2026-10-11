@@ -371,6 +371,23 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
     await c3('.tab[data-tab=records]');
     ok('TC-102c No duty saved, counted on its own, and filterable in Records', nd >= 1 && (await p3.textContent('#v-records .chips')).includes('No duty')); 
     await c3('.tab[data-tab=home]'); }
+  // TC-120 Backup & restore (used to move an account to a new Supabase project)
+  await c3('.tab[data-tab=settings]');
+  await c3('[data-act=sec][data-id=sync]');
+  { const [dl] = await Promise.all([p3.waitForEvent('download'), p3.click('[data-act=backupNow]')]);
+    const bk = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
+    ok('TC-120 Back up to file downloads a complete JSON backup', bk.app === 'daily-duty-tracker' && Object.keys(bk.data.entries).length > 60 && Array.isArray(bk.data.fields) && Array.isArray(bk.data.places)); }
+  const freeDate = await p3.evaluate(() => { let d = addDays(todayIso(), -300); while (S.entries[d]) d = addDays(d, -1); return d; });
+  const restore = { app: 'daily-duty-tracker', format: 1, exportedAt: Date.now(), email: 'tester@example.com',
+    data: { entries: { [freeDate]: { date: freeDate, status: 'duty', m: { no: '9001', place: null, text: 'Restored' }, e: { no: '', place: null, text: '' }, amt: { fare: 123 }, note: '', updatedAt: Date.now() } },
+      places: [{ id: 'p-restore', name: 'RestoredTown', catId: null, icon: null, hidden: false }], categories: [], fields: [], profile: {}, settings: {} } };
+  await c3('[data-act=restoreFile]');
+  await p3.setInputFiles('#rs-file', { name: 'duty-tracker-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(restore)) });
+  await p3.waitForTimeout(300);
+  ok('TC-121 Restore reads the file and previews it', (await p3.textContent('#rs-sum')).includes('from tester@example.com') && !(await p3.isDisabled('#rs-go')));
+  await c3('#rs-go'); await c3('#dlg-ok');
+  ok('TC-122 Restore merges the backed-up entry and place', await p3.evaluate(d => !!S.entries[d] && S.entries[d].m.no === '9001' && S.places.some(p => p.id === 'p-restore'), freeDate));
+  await c3('.tab[data-tab=home]');
   // TC-61 quick holiday
   await c3('[data-act=quick][data-status=holiday]');
   ok('TC-61 quick holiday + undo toast', (await toast3()).includes('marked as holiday') && await p3.isVisible('.toast .undo'));

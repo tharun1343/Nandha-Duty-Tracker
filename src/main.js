@@ -39,7 +39,7 @@ const inr = n => { n = Math.round((+n || 0) * 100) / 100; const [i, d] = Math.ab
 const ic = (name, sz = 24, cls = '') => ICONS[name] ? `<img class="i3d ${cls}" src="${ICONS[name]}" width="${sz}" height="${sz}" alt="">` : `<span class="letter" style="width:${sz}px;height:${sz}px">${esc((name || '?')[0].toUpperCase())}</span>`;
 const letterOr = (icon, name, sz = 28) => icon ? ic(icon, sz) : `<span class="letter" style="width:${sz}px;height:${sz}px">${esc((name || '?').trim()[0]?.toUpperCase() || '?')}</span>`;
 const plural = (n, w, pw) => `${n} ${n === 1 ? w : (pw || w + 's')}`;
-const STATUS = { duty: { label: 'On duty', icon: 'bus' }, holiday: { label: 'Holiday', icon: 'beach' }, leave: { label: 'Leave', icon: 'palm' }, noduty: { label: 'No duty', icon: 'house' } };
+const STATUS = { duty: { label: 'On duty', icon: 'bus' }, holiday: { label: 'Holiday', icon: 'beach' }, leave: { label: 'Leave', icon: 'palm' }, noduty: { label: 'No duty', icon: 'person' } };
 
 /* ---------------- Storage: one copy per account on this phone ("local" before sign-in) ---------------- */
 const LS = {
@@ -347,7 +347,7 @@ function renderHome() {
     const off = isOff(t); const ld = lastDuty();
     today += `<div class="empty">${ic(off ? 'beach' : 'bus', 58)}<p>${off ? `It's your weekly off (${WDL[S.settings.weeklyOff]}). Mark it as a holiday, or add a duty if you worked.` : 'No entry for today yet. Add the bus numbers and fare when you finish.'}</p></div>
       <div class="actions"><button class="btn primary" data-act="addFor" data-date="${t}">${ic('pencil', 20)}Add today's entry</button></div>
-      <div class="actions" style="margin-top:8px">${!off && ld ? `<button class="btn soft sm" data-act="repeatLast">↻ Repeat last duty</button>` : ''}<button class="btn ghost sm" data-act="quick" data-status="holiday">${ic('beach', 18)}Holiday</button><button class="btn ghost sm" data-act="quick" data-status="leave">${ic('palm', 18)}Leave</button><button class="btn ghost sm" data-act="quick" data-status="noduty">${ic('house', 18)}No duty</button></div>`;
+      <div class="actions" style="margin-top:8px">${!off && ld ? `<button class="btn soft sm" data-act="repeatLast">↻ Repeat last duty</button>` : ''}<button class="btn ghost sm" data-act="quick" data-status="holiday">${ic('beach', 18)}Holiday</button><button class="btn ghost sm" data-act="quick" data-status="leave">${ic('palm', 18)}Leave</button><button class="btn ghost sm" data-act="quick" data-status="noduty">${ic('person', 18)}No duty</button></div>`;
   } else if (e.status !== 'duty') {
     today += `<div class="empty">${ic(STATUS[e.status].icon, 58)}<p>Marked as <b>${STATUS[e.status].label.toLowerCase()}</b>${e.note ? ` · ${esc(e.note)}` : ''}.</p></div><div class="actions"><button class="btn ghost" data-act="editEntry" data-date="${t}">${ic('pencil', 20)}Edit entry</button></div>`;
   } else {
@@ -910,7 +910,7 @@ async function buildXLSX() {
   return await wb.xlsx.writeBuffer();
 }
 /* Saving: on the phone the share sheet opens (Save to Files, Drive, WhatsApp…); in a browser it downloads. */
-const MIME = { csv: 'text/csv;charset=utf-8', pdf: 'application/pdf', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+const MIME = { csv: 'text/csv;charset=utf-8', pdf: 'application/pdf', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', json: 'application/json' };
 async function saveFile(name, data) {
   if (native.isNative) { try { return await native.shareFile(name, data); } catch (e) { console.warn(e); return 'failed'; } }
   try {
@@ -955,6 +955,80 @@ function secHtml(id, icon, title, sub, body) {
   const open = !!S.openSecs[id];
   return `<div class="sec ${open ? 'open' : ''}" id="sec-${id}"><button class="sec-h" data-act="sec" data-id="${id}" aria-expanded="${open}">${ic(icon, 32)}<div class="grow"><div class="t">${title}</div><div class="s">${sub}</div></div><span class="caret">▾</span></button><div class="sec-b">${body}</div></div>`;
 }
+/* Full-data backup to a JSON file, and restore from one. Used to move an account to a
+   new Supabase project (or a new phone) without losing anything: the file holds every
+   record, and restoring re-uploads it to whichever project the build points at. */
+function buildBackup() {
+  return {
+    app: 'daily-duty-tracker', format: 1, exportedAt: Date.now(), appVersion: APP_VERSION,
+    email: S.auth.email || '',
+    data: { entries: S.entries, places: S.places, categories: S.categories, fields: S.fields, profile: S.profile, settings: S.settings }
+  };
+}
+function parseBackup(text) {
+  const b = JSON.parse(text);
+  if (!b || b.app !== 'daily-duty-tracker' || !b.data || typeof b.data !== 'object') throw new Error('Not a Duty Tracker backup');
+  return b;
+}
+/* Merge a backup into the current account. A newer edit already on this device is kept. */
+function applyBackup(b) {
+  const d = b.data;
+  if (d.entries && typeof d.entries === 'object') {
+    for (const [date, e] of Object.entries(d.entries)) {
+      if (!e || typeof e !== 'object') continue;
+      const cur = S.entries[date];
+      if (!cur || (e.updatedAt || 0) >= (cur.updatedAt || 0)) S.entries[date] = e;
+    }
+  }
+  const mergeById = (list, incoming) => { if (!Array.isArray(incoming)) return; for (const it of incoming) { if (!it || !it.id) continue; const i = list.findIndex(x => x.id === it.id); if (i >= 0) list[i] = it; else list.push(it); } };
+  mergeById(S.places, d.places); mergeById(S.categories, d.categories); mergeById(S.fields, d.fields);
+  if (d.profile && typeof d.profile === 'object') S.profile = { ...S.profile, ...d.profile };
+  if (d.settings && typeof d.settings === 'object') S.settings = { ...S.settings, ...d.settings, reminder: { ...S.settings.reminder, ...(d.settings.reminder || {}) } };
+}
+function backupSummary(b) {
+  const d = b.data || {};
+  return `${plural(Object.keys(d.entries || {}).length, 'day')}, ${plural((d.places || []).length, 'place')}, ${plural((d.categories || []).length, 'category', 'categories')}, ${plural((d.fields || []).length, 'amount field')}`;
+}
+async function doBackup() {
+  const name = `duty-tracker-backup-${todayIso()}.json`;
+  const res = await saveFile(name, JSON.stringify(buildBackup(), null, 2));
+  if (res === 'failed') return toast("Couldn't save the backup file", 'err');
+  toast(native.isNative ? 'Backup ready — choose where to keep it' : 'Backup file downloaded', 'ok');
+}
+function openRestore() {
+  const el = openLayer(`<div class="sheet-card" style="height:auto">${sheetHead('Restore from backup')}<div class="sheet-body">
+    <p class="muted small">Pick a <b>duty-tracker-backup…json</b> file you saved earlier. Its records are merged into this account and uploaded to the cloud. Any newer edit already on this device is kept.</p>
+    <label class="btn soft block" style="cursor:pointer">${ic('inbox', 20)}Choose backup file<input type="file" accept="application/json,.json,text/plain" id="rs-file" hidden></label>
+    <div class="field" style="margin-top:12px"><span class="flabel">Or paste the backup text</span><div class="input"><textarea id="rs-text" rows="4" placeholder='{"app":"daily-duty-tracker", …}' style="width:100%;resize:vertical;font:12px/1.5 var(--f-mono);border:0;background:transparent;color:inherit"></textarea></div></div>
+    <div id="rs-sum" class="muted small" style="margin-top:10px"></div>
+    </div><div class="sheet-foot"><button class="btn green block" id="rs-go" disabled>Restore</button></div></div>`);
+  let parsed = null;
+  const sum = el.querySelector('#rs-sum'), go = el.querySelector('#rs-go'), ta = el.querySelector('#rs-text');
+  const preview = text => {
+    if (!text.trim()) { parsed = null; go.disabled = true; sum.textContent = ''; return; }
+    try {
+      const b = parseBackup(text); parsed = b; go.disabled = false;
+      sum.innerHTML = `${backupSummary(b)}${b.email ? ` · from ${esc(b.email)}` : ''}${b.exportedAt ? ` · saved ${esc(fmtD(new Date(b.exportedAt).toISOString().slice(0, 10)))}` : ''}`;
+    } catch (e) { parsed = null; go.disabled = true; sum.textContent = 'That does not look like a Duty Tracker backup file.'; }
+  };
+  el.querySelector('#rs-file').onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    if (f.size > 20 * 1024 * 1024) return toast('That file is too large to be a backup', 'err');
+    const r = new FileReader(); r.onload = () => { ta.value = String(r.result || ''); preview(ta.value); }; r.onerror = () => toast('Could not read that file', 'err'); r.readAsText(f);
+  };
+  ta.addEventListener('input', e => preview(e.target.value));
+  go.onclick = () => {
+    if (!parsed) return; const d = parsed.data;
+    confirmDlg({ icon: 'cloud', title: 'Restore this backup?', text: 'Its records are added to this account and uploaded. Any newer edit on this device is kept.',
+      kv: [['Days', String(Object.keys(d.entries || {}).length)], ['Places', String((d.places || []).length)], ['Amount fields', String((d.fields || []).length)]], ok: 'Restore',
+      onOk: async () => {
+        try { applyBackup(parsed); } catch (e) { return toast('That backup could not be read', 'err'); }
+        save(); while (layers.length) closeTop(true); renderAll(); toast('Backup restored on this device', 'ok');
+        if (canSync()) { await runSync(); toast(S.sync.error ? 'Restored here — it will upload when you reconnect' : 'Backup restored and uploaded to the cloud', S.sync.error ? 'warn' : 'ok'); }
+        else markDirty();
+      } });
+  };
+}
 function renderSettings() {
   const st = S.settings, p = S.profile; const use = placeUsage();
   const placesBody = `<div class="list" style="box-shadow:none;border:1px solid var(--line)">
@@ -971,7 +1045,9 @@ function renderSettings() {
   const signedIn = cloud.configured && UID !== 'local';
   const syncBody = `<div class="sync-live">${syncDetail()}</div>
     ${signedIn ? `<div class="setrow"><div class="lbl"><div>Signed in as<small>${esc(S.auth.email)}</small></div></div></div>` : ''}
-    ${cloud.configured ? `<div class="actions"><button class="btn soft" data-act="syncNow">${ic('cloud', 20)}Sync now</button>${S.sync.error === 'auth' ? '<button class="btn primary" data-act="reauth">Sign in again</button>' : ''}</div>` : ''}`;
+    ${cloud.configured ? `<div class="actions"><button class="btn soft" data-act="syncNow">${ic('cloud', 20)}Sync now</button>${S.sync.error === 'auth' ? '<button class="btn primary" data-act="reauth">Sign in again</button>' : ''}</div>` : ''}
+    <div class="setrow" style="border-top:1px solid var(--line);margin-top:6px;padding-top:12px"><div class="lbl"><div>Backup file<small>Save every record to a file, then restore it on a new phone or account</small></div></div></div>
+    <div class="actions"><button class="btn soft" data-act="backupNow">${ic('inbox', 20)}Back up to file</button><button class="btn soft" data-act="restoreFile">${ic('memo', 20)}Restore from a file</button></div>`;
   const rem = st.reminder;
   const remBody = `<div class="setrow"><div class="lbl"><div>Daily reminder<small>${native.isNative ? 'A notification at this time on duty days that have no entry yet' : 'Works in the Android app'}</small></div></div><button class="toggle ${rem.on ? 'on' : ''}" data-act="remToggle" role="switch" aria-checked="${rem.on}" aria-label="Daily reminder"></button></div>
     ${rem.on ? `<div class="setrow"><div class="lbl">Reminder time</div><button class="btn ghost sm" data-act="remTime">${fmtTime(rem.time)} ▾</button></div>` : ''}`;
@@ -1377,6 +1453,8 @@ const ACT = {
     toast(S.sync.error ? (S.sync.error === 'auth' ? 'Sign in again to sync' : "Sync failed. It will retry automatically.") : 'Everything is synced', S.sync.error ? 'err' : 'ok');
   },
   reauth: () => { while (layers.length) closeTop(true); $('#email').value = S.auth.email; showAuth('email'); },
+  backupNow: () => doBackup(),
+  restoreFile: () => openRestore(),
   remToggle: async () => {
     const r = S.settings.reminder;
     if (!r.on) {
@@ -1504,7 +1582,7 @@ registerSW();
 
 /* Test hooks (only in the e2e build). */
 if (import.meta.env.VITE_E2E === '1') {
-  Object.assign(window, { todayIso, addDays, parse, fmtDW, fmtD, daysIn, monthDates, monthKey, shiftMonth, inr, openEntry, drawEntry, closeTop, buildCSV, exportRange, exportRows, renderExport, renderRecords, quickMark, markDirty, save, placeGroups, defaultStatus, missingDays, enabledFields, openCalendar, applyLook, enterApp, showTab, toast, runSync, loadAccount, checkUpdate, sheetData, R, X, layers, app, cloud });
+  Object.assign(window, { todayIso, addDays, parse, fmtDW, fmtD, daysIn, monthDates, monthKey, shiftMonth, inr, openEntry, drawEntry, closeTop, buildCSV, exportRange, exportRows, renderExport, renderRecords, quickMark, markDirty, save, placeGroups, defaultStatus, missingDays, enabledFields, openCalendar, applyLook, enterApp, showTab, toast, runSync, loadAccount, checkUpdate, sheetData, buildBackup, parseBackup, applyBackup, openRestore, doBackup, renderSettings, R, X, layers, app, cloud });
   Object.defineProperty(window, 'S', { get: () => S, set: v => { S = v; } });
   Object.defineProperty(window, 'F', { get: () => F, set: v => { F = v; } });
   Object.defineProperty(window, 'META', { get: () => META });

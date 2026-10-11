@@ -57,7 +57,10 @@ function seedAccount(srv, email, name) {
   add('field', 'fare', { id: 'fare', name: 'Bus Fare', on: true, order: 0 });
   add('field', 'para', { id: 'para', name: 'Paramount', on: false, order: 1 });
   add('profile', 'me', { name, avatar: 'bus', photo: null, staffId: '', depot: '', phone: '' });
-  add('settings', 'me', { theme: 'system', palette: 'navy', text: 'm', bold: false, weeklyOff: 0, reminder: { on: false, time: '20:00' } });
+  // weeklyOff -1 (no weekly off) keeps the suite weekday-independent: a new entry defaults to
+  // On duty on every day, so the entry-form tests pass even when the run happens on a Sunday.
+  // TC-80 sets a weekly off itself when it needs to test that behaviour.
+  add('settings', 'me', { theme: 'system', palette: 'navy', text: 'm', bold: false, weeklyOff: -1, reminder: { on: false, time: '20:00' } });
   const t = iso(new Date()); const duties = ['8752', '8753', '8710', '8761', '8724', '8735']; const skip = new Set([3, 9, 16]);
   for (let ago = 75; ago >= 1; ago--) {
     const dd = parse(t); dd.setDate(dd.getDate() - ago); const d = iso(dd); const r = rng(parse(d).getTime() / 86400000);

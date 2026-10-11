@@ -2,6 +2,9 @@
 
 You only do this once. Steps marked **(you)** happen in a dashboard; nothing here needs a password to be sent to anyone.
 
+> Moving an existing app to a **new** Supabase account? Follow
+> [`docs/MIGRATE-SUPABASE.md`](MIGRATE-SUPABASE.md) instead — it carries your data across.
+
 ## 1. Supabase project (you)
 
 1. Go to **supabase.com → Dashboard → New project**.

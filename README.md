@@ -11,11 +11,12 @@ A mobile app that replaces the printed Excel duty sheet (`Duty_Tracker_2026.xlsx
 | `prototype/tests/prototype.e2e.js` | Playwright click-through (96 checks): `node prototype/tests/prototype.e2e.js`. Set `LIB_DIR=<node_modules>` to serve exceljs/jspdf locally when cdnjs is blocked |
 | `prototype/tools/make_artifact.py` | Bundles the prototype into one self-contained HTML file |
 | `docs/TEST-CASES.md` | Living test-case document |
+| `docs/MIGRATE-SUPABASE.md` | How to move the app to a new Supabase account without losing data |
 | `src/`, `index.html` | The app (Vite + vanilla JS), ported from the prototype |
 | `android/` | Capacitor Android project (portrait, signed release builds in CI) |
 | `supabase/schema.sql` | Database table, row-level security, newest-edit-wins trigger |
 | `tests/unit/` | Sync engine tests: `npm test` |
-| `tests/e2e/` | Built app vs. a fake Supabase (109 checks): `npm run e2e` |
+| `tests/e2e/` | Built app vs. a fake Supabase (133 checks): `npm run e2e` |
 | `.github/workflows/android.yml` | Update pipeline: tests → signed APK → GitHub Release + Supabase `releases` bucket → in-app update banner |
 | `.env.production` | Public Supabase settings (project URL + publishable key) |
 
