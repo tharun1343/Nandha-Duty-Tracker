@@ -65,7 +65,7 @@ Every push to the repository's default branch (now `claude/beautiful-brown-lp8zw
 Pushes to any other branch only replace the **preview** pre-release, for testing.
 
 Fixed download link, which always gives the newest version:
-`https://hayytgkfuzhoyjsbwhwd.supabase.co/storage/v1/object/public/releases/duty-tracker-latest.apk`
+`https://mxdbtzkkuteuljopylnf.supabase.co/storage/v1/object/public/releases/duty-tracker-latest.apk`
 
 ## Web version (Windows or any browser)
 
