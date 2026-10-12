@@ -684,9 +684,9 @@ function buildCSV() {
 }
 /* Shared export model: one row per day, used by the on-screen preview, PDF, Excel and CSV.
    Colours follow the original Excel sheet. */
-const XL = { noduty: 'F2F2F2', nodutyInk: '595959', title: '1F4E79', head: '2E75B6', label: 'D6E4F0', labelInk: '1F4E79', value: 'DAEEF3', holiday: 'FFE4E1', holidayInk: 'C0392B', leave: 'FFF1D9', leaveInk: '92600F', grid: 'C9D6E3' };
-function exportData() {
-  const { r, rows } = exportRows(); const flds = enabledFields(); const p = S.profile;
+const XL = { noduty: 'F2F2F2', nodutyInk: '595959', title: '1F4E79', head: '2E75B6', label: 'D6E4F0', labelInk: '1F4E79', value: 'DAEEF3', holiday: 'FFE4E1', holidayInk: 'C0392B', leave: 'FFF1D9', leaveInk: '92600F', grid: 'C9D6E3', zebra: 'EEF4FB' };
+function exportData(rowsArg, rArg) {
+  const { r, rows } = rowsArg ? { r: rArg, rows: rowsArg } : exportRows(); const flds = enabledFields(); const p = S.profile;
   const list = rows.map(({ d, e }, i) => ({
     n: i + 1, date: fmtD(d), day: WDL[parse(d).getDay()],
     status: e ? STATUS[e.status].label : (isOff(d) ? 'Holiday' : ''),
@@ -707,7 +707,7 @@ const totalValues = D => [D.tot.duty, D.tot.m, D.tot.e, ...D.flds.map(f => money
 const A4 = { w: 595.28, h: 841.89, m: 14, frac: 0.6 };
 function paperHtml() {
   const D = exportData();
-  const body = D.list.map(x => `<tr class="${x.kind}"><td>${x.n}</td><td>${x.date}</td><td>${x.day}</td><td class="st">${x.status}</td><td>${esc(dutyCell(x.mNo, x.mPl))}</td><td>${esc(dutyCell(x.eNo, x.ePl))}</td>${x.amt.map(a => `<td>${money0(a)}</td>`).join('')}</tr>`).join('');
+  const body = D.list.map(x => `<tr class="${x.kind}"${!x.kind && x.n % 2 === 1 ? ' style="background:#EEF4FB"' : ''}><td>${x.n}</td><td>${x.date}</td><td>${x.day}</td><td class="st">${x.status}</td><td>${esc(dutyCell(x.mNo, x.mPl))}</td><td>${esc(dutyCell(x.eNo, x.ePl))}</td>${x.amt.map(a => `<td>${money0(a)}</td>`).join('')}</tr>`).join('');
   return `<div class="a4"><div class="cut" aria-hidden="true"></div><div class="blk" id="blk">
     <div class="ttl">${esc(D.title)}</div>
     <table class="xinfo"><tr>${D.info.map(i => `<th>${esc(i[0])}</th>`).join('')}</tr><tr>${D.info.map(i => `<td>${esc(i[1])}</td>`).join('')}</tr></table>
@@ -738,10 +738,10 @@ const rgb = hex => [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
    Drawn on a canvas so Tamil place names are shaped correctly, then placed as a
    300-dpi image in the top-left 60% × 60% of an A4 landscape page. */
 const A4L = { w: 841.89, h: 595.28, m: 14, frac: 0.6 };
-const SHEET = { purple: '#7030A0', red: '#FF0000', green: '#00B050', ink: '#000000', line: '#3A3A3A', thin: '#8A8A8A' };
-const SHEET_FONT = 'Arial, Roboto, Figtree, "Noto Sans Tamil", sans-serif';
+const SHEET = { purple: '#6A2C91', red: '#C0392B', green: '#1E8449', ink: '#1C2733', line: '#5B6B7B', thin: '#B4C3D4', head: '#D6E4F0', headInk: '#1F4E79', zebra: '#EEF4FB' };
+const SHEET_FONT = '"Figtree", "Helvetica Neue", Arial, "Noto Sans Tamil", sans-serif';
 const SHEET_COLS = [0.12, 0.126, 0.16, 0.43, 0.164]; // Date, Bus No., Half, place, Amount (share of width)
-const SHEET_MIN_ROWS = 20, SHEET_MAX_ROWS = 34; // more duty rows than this continue on another page
+const SHEET_MIN_ROWS = 20; // keep a short month looking full; everything is drawn on a single page
 const SHEET_W = A4L.w * A4L.frac - A4L.m, SHEET_MAX_H = A4L.h * A4L.frac - A4L.m;
 function sheetData() {
   const { r, rows } = exportRows(); const flds = enabledFields(); const p = S.profile;
@@ -754,12 +754,7 @@ function sheetData() {
     if (!duties.length) duties.push({ no: '', half: false, place: '' });
     days.push({ date: `${dt.getDate()}-${MON[dt.getMonth()]}`, amount: amount ? money0(amount) : '', duties });
   });
-  const pages = []; let page = [], count = 0;
-  days.forEach(day => { // keep a day's two rows on the same page
-    if (count + day.duties.length > SHEET_MAX_ROWS && page.length) { pages.push(page); page = []; count = 0; }
-    page.push(day); count += day.duties.length;
-  });
-  pages.push(page);
+  const pages = [days]; // everything fits on one page; row height auto-shrinks to fit
   const list = days.flatMap(day => day.duties.map((x, i) => ({ date: i ? '' : day.date, no: x.no, half: x.half, place: x.place, amount: i ? '' : day.amount })));
   const sameMonth = r.from.slice(0, 7) === r.to.slice(0, 7);
   const head = sameMonth ? `${r.from.slice(0, 4)} ${MONL[+r.from.slice(5, 7) - 1]}` : `${fmtD(r.from)} – ${fmtD(r.to)}`;
@@ -796,16 +791,19 @@ function drawSheet(ctx, D, days, last, s) {
   text(D.role, xs[4], xs[5], y, h1, 0.58 * u, SHEET.red);
   thick(xs[2], y, xs[2], y + h1); thick(xs[4], y, xs[4], y + h1); thick(0, y + h1, W, y + h1);
   y += h1;
-  // Row 2: column titles
-  const h2 = 0.9 * u;
-  text('Date', xs[0], xs[1], y, h2, 0.56 * u); text('Bus No.', xs[1], xs[3], y, h2, 0.56 * u);
-  text('place', xs[3], xs[4], y, h2, 0.56 * u); text('Amount', xs[4], xs[5], y, h2, 0.56 * u);
+  // Row 2: column titles, on a light-blue band
+  const h2 = 1.0 * u;
+  ctx.fillStyle = SHEET.head; ctx.fillRect(0, y, W, h2);
+  text('Date', xs[0], xs[1], y, h2, 0.56 * u, SHEET.headInk); text('Bus No.', xs[1], xs[3], y, h2, 0.56 * u, SHEET.headInk);
+  text('Place', xs[3], xs[4], y, h2, 0.56 * u, SHEET.headInk); text('Amount', xs[4], xs[5], y, h2, 0.56 * u, SHEET.headInk);
   [1, 3, 4].forEach(i => thick(xs[i], y, xs[i], y + h2)); thick(0, y + h2, W, y + h2);
   y += h2;
-  // Worked days (Date and Amount merged across a day's duties), then blank rows
+  // Worked days (Date and Amount merged across a day's duties), then blank rows.
+  // Zebra: the 1st, 3rd, 5th … day gets a light-blue band, the rest stay white.
   const top = y; let used = 0;
-  days.forEach(day => {
+  days.forEach((day, di) => {
     const k = day.duties.length;
+    if (di % 2 === 0) { ctx.fillStyle = SHEET.zebra; ctx.fillRect(0, y, W, k * u); }
     text(day.date, xs[0], xs[1], y, k * u, 0.66 * u);
     text(day.amount, xs[4], xs[5], y, k * u, 0.66 * u);
     day.duties.forEach((x, j) => {
@@ -862,8 +860,26 @@ async function drawSheetPreview(el) {
 }
 async function buildXLSX() {
   await loadLibs('xlsx');
-  const D = exportData(); const wb = new window.ExcelJS.Workbook(); wb.creator = 'Daily Duty Tracker';
-  const ws = wb.addWorksheet(D.r.title.slice(0, 31).replace(/[\\/?*[\]:]/g, '-'), { pageSetup: { paperSize: 9, orientation: 'portrait' } });
+  const { rows } = exportRows();
+  const wb = new window.ExcelJS.Workbook(); wb.creator = 'Daily Duty Tracker';
+  // Split a multi-month range into one sheet per month (year-aware); a single month stays one sheet.
+  const groups = []; const idx = {};
+  rows.forEach(row => { const k = row.d.slice(0, 7); if (!(k in idx)) { idx[k] = groups.length; groups.push({ key: k, rows: [] }); } groups[idx[k]].rows.push(row); });
+  const used = {};
+  const sheetName = base => { let name = base.slice(0, 31).replace(/[\\/?*[\]:]/g, '-') || 'Sheet'; let n = name, i = 2; while (used[n.toLowerCase()]) n = `${name.slice(0, 28)} ${i++}`; used[n.toLowerCase()] = 1; return n; };
+  if (groups.length <= 1) {
+    writeXlsxSheet(wb, sheetName(exportRange().title), exportData());
+  } else {
+    groups.forEach(g => {
+      const title = `${MON[+g.key.slice(5, 7) - 1]} ${g.key.slice(0, 4)}`;
+      const mr = { from: `${g.key}-01`, to: monthDates(g.key).at(-1), title };
+      writeXlsxSheet(wb, sheetName(title), exportData(g.rows, mr));
+    });
+  }
+  return await wb.xlsx.writeBuffer();
+}
+function writeXlsxSheet(wb, name, D) {
+  const ws = wb.addWorksheet(name, { pageSetup: { paperSize: 9, orientation: 'portrait' } });
   const head = ['#', 'Date', 'Day', 'Status', 'Morning Bus No.', 'Morning Place', 'Evening Bus No.', 'Evening Place', ...D.flds.map(f => `${f.name} (₹)`), 'Half day', 'Note'];
   const n = head.length;
   const fill = hex => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + hex } });
@@ -890,6 +906,7 @@ async function buildXLSX() {
     for (let col = 1; col <= n; col++) {
       const c = row.getCell(col); c.border = border; c.font = font(); c.alignment = { horizontal: col === 6 || col === 8 || col === n ? 'left' : 'center', vertical: 'middle' };
       if (x.kind) c.fill = fill(x.kind === 'h' ? XL.holiday : x.kind === 'nd' ? XL.noduty : XL.leave);
+      else if (x.n % 2 === 1) c.fill = fill(XL.zebra); // zebra: odd rows tinted, even rows white
     }
     if (x.kind) row.getCell(4).font = font({ bold: true, color: { argb: 'FF' + (x.kind === 'h' ? XL.holidayInk : x.kind === 'nd' ? XL.nodutyInk : XL.leaveInk) } });
   });
@@ -907,7 +924,6 @@ async function buildXLSX() {
   D.flds.forEach((f, i) => { ws.getColumn(9 + i).numFmt = '[>=100000]##\\,##\\,##0;##,##0'; });
   [5, 13, 11, 10, 12, 18, 12, 18, ...D.flds.map(() => 13), 10, 26].forEach((w, i) => ws.getColumn(i + 1).width = w);
   ws.views = [{ state: 'frozen', ySplit: 4 }];
-  return await wb.xlsx.writeBuffer();
 }
 /* Saving: on the phone the share sheet opens (Save to Files, Drive, WhatsApp…); in a browser it downloads. */
 const MIME = { csv: 'text/csv;charset=utf-8', pdf: 'application/pdf', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', json: 'application/json' };
@@ -1383,8 +1399,8 @@ async function installNative() {
   try {
     const r = await native.installUpdate();
     if (r && r.needsPermission) { UPD.dl = 'permission'; updateProgressUI(); toast('Allow “Install unknown apps” for Duty Tracker, come back, then tap Install update.', 'info'); }
-    else { UPD.dl = 'install'; updateProgressUI(); toast('Tap Update on the Android screen to finish. Your entries stay on the phone.', 'info'); }
-  } catch (e) { UPD.dl = 'error'; updateProgressUI(); toast(`Couldn’t open the installer: ${e.message}`, 'err'); }
+    else { UPD.dl = 'install'; updateProgressUI(); toast('Confirm “Update” on the Android prompt to finish — it installs in place and your entries stay.', 'info'); }
+  } catch (e) { UPD.dl = 'error'; updateProgressUI(); toast(`Couldn’t install the update: ${e.message}`, 'err'); }
 }
 /* Web: the service worker has (or fetches) the new version; switch to it and reload in place. */
 let swReg = null;

@@ -90,8 +90,10 @@ const ok = (name, cond, extra='') => { results.push(`${cond ? 'PASS' : 'FAIL'}  
   await click('#shift-m [data-act=pickPlace]');
   await shot('06-place-picker');
   await page.fill('#pk-q', 'bhav'); await page.waitForTimeout(200);
-  const cnt = await page.locator('.pk-list .pk-item:not(.other)').count();
-  ok('TC-14 place search filters', cnt === 1, 'items=' + cnt);
+  // A place can show twice (once under "Recently used", once under its category), so assert the
+  // filter keeps only matching places rather than a fixed count.
+  const labels = await page.locator('.pk-list .pk-item:not(.other) .t').allTextContents();
+  ok('TC-14 place search filters', labels.length >= 1 && labels.every(t => /bhav/i.test(t)), 'items=' + JSON.stringify(labels));
   await click('.pk-list .pk-item:not(.other)');
   ok('TC-15 place chosen', (await page.textContent('#shift-m .val')).includes('Bhavani'));
   // evening: Other
