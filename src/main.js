@@ -200,16 +200,18 @@ window.addEventListener('offline', () => { updateSync(); if (!$('#main').hidden)
 
 /* ---------------- Toasts ---------------- */
 let toastTimer;
-function toast(msg, kind = 'ok', undo) {
+function toast(msg, kind = 'ok', action) {
+  // action: a function (shown as "Undo"), or { label, onClick } for a custom button like "View".
+  const act = typeof action === 'function' ? { label: 'Undo', onClick: action } : action;
   const box = $('#toasts'); box.innerHTML = '';
   const el = document.createElement('div'); el.className = 'toast t-' + kind; el.setAttribute('role', 'status');
-  el.innerHTML = `<span class="ti">${({ ok: '✓', warn: '!', err: '!', info: 'i' })[kind]}</span><span class="tm">${esc(msg)}</span>${undo ? '<button class="undo">Undo</button>' : ''}<button class="x" aria-label="Dismiss">×</button>`;
+  el.innerHTML = `<span class="ti">${({ ok: '✓', warn: '!', err: '!', info: 'i' })[kind]}</span><span class="tm">${esc(msg)}</span>${act ? `<button class="undo">${esc(act.label)}</button>` : ''}<button class="x" aria-label="Dismiss">×</button>`;
   box.append(el);
   const close = () => { el.classList.add('out'); setTimeout(() => { el.remove(); if (!box.children.length) app.classList.remove('toast-up'); }, 220); };
   el.querySelector('.x').onclick = close;
-  if (undo) el.querySelector('.undo').onclick = () => { close(); undo(); };
+  if (act) el.querySelector('.undo').onclick = () => { close(); act.onClick(); };
   app.style.setProperty('--toast-h', el.offsetHeight + 'px'); app.classList.add('toast-up');
-  clearTimeout(toastTimer); toastTimer = setTimeout(close, undo ? 6500 : 3800);
+  clearTimeout(toastTimer); toastTimer = setTimeout(close, act ? 6500 : 3800);
 }
 
 /* ---------------- Layers (sheets, dialogs, pickers) ---------------- */
@@ -738,7 +740,8 @@ const rgb = hex => [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
    Drawn on a canvas so Tamil place names are shaped correctly, then placed as a
    300-dpi image in the top-left 60% × 60% of an A4 landscape page. */
 const A4L = { w: 841.89, h: 595.28, m: 14, frac: 0.6 };
-const SHEET = { purple: '#6A2C91', red: '#C0392B', green: '#1E8449', ink: '#1C2733', line: '#5B6B7B', thin: '#B4C3D4', head: '#D6E4F0', headInk: '#1F4E79', zebra: '#EEF4FB' };
+// line and thin share one grey so every border on the sheet is the same colour (thickness still varies).
+const SHEET = { purple: '#6A2C91', red: '#C0392B', green: '#1E8449', ink: '#1C2733', line: '#8C99A6', thin: '#8C99A6', head: '#D6E4F0', headInk: '#1F4E79', zebra: '#EEF4FB' };
 const SHEET_FONT = '"Figtree", "Helvetica Neue", Arial, "Noto Sans Tamil", sans-serif';
 const SHEET_COLS = [0.12, 0.126, 0.16, 0.43, 0.164]; // Date, Bus No., Half, place, Amount (share of width)
 const SHEET_MIN_ROWS = 20; // keep a short month looking full; everything is drawn on a single page
@@ -927,10 +930,21 @@ function writeXlsxSheet(wb, name, D) {
 }
 /* Saving: on the phone the share sheet opens (Save to Files, Drive, WhatsApp…); in a browser it downloads. */
 const MIME = { csv: 'text/csv;charset=utf-8', pdf: 'application/pdf', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', json: 'application/json' };
-async function saveFile(name, data) {
-  if (native.isNative) { try { return await native.shareFile(name, data); } catch (e) { console.warn(e); return 'failed'; } }
+let LAST_SAVED = null; // { uri, mime, name } of the file most recently saved to Downloads, for the toast's "View" button
+async function saveFile(name, data, opts = {}) {
+  const mime = MIME[name.split('.').pop()] || 'application/octet-stream';
+  if (native.isNative) {
+    // Exports go straight to the Downloads folder; the backup file uses the share sheet (opts.share).
+    if (!opts.share) {
+      try {
+        const r = await native.saveToDownloads(name, data, mime);
+        if (r && r.uri) { LAST_SAVED = { uri: r.uri, mime, name }; return 'downloaded'; }
+      } catch (e) { console.warn(e); } // fall back to sharing (e.g. older Android)
+    }
+    try { return await native.shareFile(name, data); } catch (e) { console.warn(e); return 'failed'; }
+  }
   try {
-    const url = URL.createObjectURL(new Blob([data], { type: MIME[name.split('.').pop()] }));
+    const url = URL.createObjectURL(new Blob([data], { type: mime }));
     const a = document.createElement('a'); a.href = url; a.download = name; a.rel = 'noopener'; document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000); return 'saved';
   } catch (e) { return 'failed'; }
@@ -954,7 +968,8 @@ async function doExport(fmt, again) {
   }
   const res = await saveFile(name, data);
   X.busy = false; renderExport(); updateAgainBtn();
-  if (res === 'saved') toast(`${name} saved`, 'ok');
+  if (res === 'downloaded') toast(`${name} saved to Downloads`, 'ok', { label: 'View', onClick: () => native.openFile(LAST_SAVED.uri, LAST_SAVED.mime).catch(() => toast('No app found to open this file', 'warn')) });
+  else if (res === 'saved') toast(`${name} saved`, 'ok');
   else if (res === 'declined') toast('Download cancelled', 'info');
   else if (res === 'busy') toast('A download is already waiting for your answer', 'warn');
   else toast(`Couldn't save ${name}. Try again.`, 'err');
@@ -1007,7 +1022,7 @@ function backupSummary(b) {
 }
 async function doBackup() {
   const name = `duty-tracker-backup-${todayIso()}.json`;
-  const res = await saveFile(name, JSON.stringify(buildBackup(), null, 2));
+  const res = await saveFile(name, JSON.stringify(buildBackup(), null, 2), { share: true });
   if (res === 'failed') return toast("Couldn't save the backup file", 'err');
   toast(native.isNative ? 'Backup ready — choose where to keep it' : 'Backup file downloaded', 'ok');
 }

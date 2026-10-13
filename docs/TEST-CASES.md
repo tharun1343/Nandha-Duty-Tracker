@@ -97,7 +97,7 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 | TC-72 | Export | PDF duty sheet | Download PDF | Same structure as the paper "spare" sheet (Nandha_CLG.pdf, Surya table): month (purple) · name (red) · duty type; Date \| Route.no \| Half \| place \| Amount; worked days only; at least 20 rows; Signature / TOTAL (green); white background; top-left 60% × 60% of an **A4 landscape** page | High | Pass (auto) + visual |
 | TC-92 | Export | PDF rows | Export a month | Only on-duty days; holidays, leave and empty days left out; a day with morning + evening duty uses two rows, amount on the first | High | Pass (auto) |
 | TC-93 | Export | PDF total | Export a month | TOTAL equals the sum of the amounts | High | Pass (auto) |
-| TC-123 | Export | PDF one page, zebra | Export any range | The whole sheet fits on a single A4 landscape page (row height auto-shrinks); worked days alternate a light-blue and a white band; column titles on a light-blue header band; Figtree font | High | Pass (auto) + visual |
+| TC-123 | Export | PDF one page, zebra | Export any range | The whole sheet fits on a single A4 landscape page (row height auto-shrinks); worked days alternate a light-blue and a white band; column titles on a light-blue header band; Figtree font; every border is the same grey (no black lines) | High | Pass (auto) + visual |
 | TC-124 | Export | Excel zebra rows | Download Excel | Odd data rows tinted light blue, even rows white; Holiday/Leave/No-duty rows keep their own colour | High | Pass (auto) + visual |
 | TC-125 | Export | Excel split by month | Download Excel for a multi-month range | One worksheet per calendar month (named e.g. "Oct 2026"), each with its own table and TOTALS; a single-month range stays one sheet | High | Pass (auto) |
 | TC-94 | Export | Tamil places | Place named கெம்பநாய்க்கன்பாளையம், Half duty, route `2[school]` | Printed correctly (Tamil shaped properly) | High | Pass (auto) + visual |
@@ -213,7 +213,7 @@ Last prototype run: 96 automated checks, 0 failures, no app console errors. The 
 |---|---|---|---|
 | APK-01 | Install | Install `duty-tracker.apk` | Installs; icon "Duty Tracker"; opens in portrait only |
 | APK-02 | Back button | Android back with a sheet open → again → again | Closes the sheet, then goes to Home, then exits |
-| APK-03 | Export | Download PDF / Excel / CSV | Android share sheet opens (Save to Files / Drive / WhatsApp); the file opens correctly |
+| APK-03 | Export | Download PDF / Excel / CSV | File saves straight to the phone's Downloads folder; toast "…saved to Downloads" with a **View** button that opens it; no share sheet (the backup file still uses the share sheet) |
 | APK-04 | Reminder | Settings → Reminder on, time 8:00 PM | Notification asks permission; reminder appears only on duty days without an entry; tapping it opens Add entry for that day |
 | APK-07 | In-app update | Newer signed version published → Update now | Progress bar "Downloading… N%" inside the app, then the app installs the APK itself via the PackageInstaller session (first time: allow "Install unknown apps" for Duty Tracker); only Android's single "Update?" confirmation appears, then it returns to the app; no browser tab, no file-manager hop |
 | APK-05 | Update | Install a newer build over the old one (signed) | Installs over it; entries kept |

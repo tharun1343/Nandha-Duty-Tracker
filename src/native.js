@@ -37,6 +37,16 @@ export async function shareFile(name, data) {
   }
 }
 
+const FileSaver = registerPlugin('FileSaver'); // android/app/src/main/java/.../FileSaverPlugin.java
+/** Saves a file into the public Downloads folder. Returns { uri } on success, or { fallback:true } on old Android. */
+export async function saveToDownloads(name, data, mime) {
+  return FileSaver.saveToDownloads({ name, data: toBase64(data), mime: mime || 'application/octet-stream' });
+}
+/** Opens a saved file (content:// uri) with a viewer app. */
+export async function openFile(uri, mime) {
+  return FileSaver.openFile({ uri, mime: mime || '*/*' });
+}
+
 export async function openUrl(url) {
   if (isNative) { const { Browser } = await import('@capacitor/browser'); await Browser.open({ url }); }
   else window.open(url, '_blank', 'noopener');
